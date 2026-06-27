@@ -4,9 +4,9 @@ export class OutboxEntity {
         private readonly _type: string,
         private readonly _payload: string,
         private readonly _occurredOn: Date,
-        private readonly _status: string | undefined,
-        private readonly _processedOn: Date | undefined,
-        private readonly _error: string | undefined,
+        private readonly _status: string | null,
+        private readonly _updateAt: Date | null,
+        private readonly _error: string | null,
     ) {}
 
     get id(): string {
@@ -25,15 +25,15 @@ export class OutboxEntity {
         return this._occurredOn;
     }
 
-    get processed(): string | undefined {
+    get processed(): string | null {
         return this._status;
     }
 
-    get processedOn(): Date | undefined {
-        return this._processedOn;
+    get updateAt(): Date | null {
+        return this._updateAt;
     }
 
-    get error(): string | undefined {
+    get error(): string | null {
         return this._error;
     }
 
@@ -42,9 +42,9 @@ export class OutboxEntity {
         type: string;
         payload: string;
         occurredOn: Date;
-        status?: string;
-        processedOn?: Date;
-        error?: string;
+        status: string | null;
+        updateAt: Date | null;
+        error: string | null;
     }): OutboxEntity {
         return new OutboxEntity(
             params.id,
@@ -52,7 +52,7 @@ export class OutboxEntity {
             params.payload,
             params.occurredOn,
             params.status,
-            params.processedOn,
+            params.updateAt,
             params.error,
         );
     }

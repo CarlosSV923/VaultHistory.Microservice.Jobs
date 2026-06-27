@@ -1,17 +1,21 @@
 export class UserEntity {
     private constructor(
-        public readonly _id: string,
-        public readonly _fullname: string,
-        public readonly _email: string,
-        public readonly _password: string,
-        public readonly _brithDate: string | undefined,
-        public readonly _createdAt: Date,
-        public readonly _updatedAt: Date | undefined,
-        public readonly _isActive: boolean,
-        public readonly _theme: string | undefined,
-        public readonly _customDate: Date | undefined,
-        public readonly _character: string | undefined,
+        private readonly _id: string,
+        private readonly _fullname: string,
+        private readonly _email: string,
+        private readonly _birthDate: Date | null,
+        private readonly _notification: boolean,
+        private readonly _notificationDate: Date | null,
+        private readonly _createdAt: Date,
+        private readonly _updatedAt: Date | null,
+        private readonly _isActive: boolean,
+        private readonly _theme: string | null,
+        private readonly _character: string | null,
     ) {}
+
+    get notification(): boolean {
+        return this._notification;
+    }
 
     get id(): string {
         return this._id;
@@ -25,23 +29,15 @@ export class UserEntity {
         return this._email;
     }
 
-    get password(): string {
-        return this._password;
-    }
-
-    get brithDate(): string | undefined {
-        return this._brithDate;
-    }
-
-    get birthDate(): string | undefined {
-        return this._brithDate;
+    get birthDate(): Date | null {
+        return this._birthDate;
     }
 
     get createdAt(): Date {
         return this._createdAt;
     }
 
-    get updatedAt(): Date | undefined {
+    get updatedAt(): Date | null {
         return this._updatedAt;
     }
 
@@ -49,42 +45,42 @@ export class UserEntity {
         return this._isActive;
     }
 
-    get theme(): string | undefined {
+    get theme(): string | null {
         return this._theme;
     }
 
-    get customDate(): Date | undefined {
-        return this._customDate;
+    get character(): string | null {
+        return this._character;
     }
 
-    get character(): string | undefined {
-        return this._character;
+    get notificationDate(): Date | null {
+        return this._notificationDate;
     }
 
     static restore(params: {
         id: string;
         fullname: string;
         email: string;
-        password: string;
-        brithDate?: string;
+        brithDate: Date | null;
+        notification: boolean;
+        notificationDate: Date | null;
         createdAt: Date;
-        updatedAt?: Date;
+        updatedAt: Date | null;
         isActive: boolean;
-        theme?: string;
-        customDate?: Date;
-        character?: string;
+        theme: string | null;
+        character: string | null;
     }): UserEntity {
         return new UserEntity(
             params.id,
             params.fullname,
             params.email,
-            params.password,
             params.brithDate,
+            params.notification,
+            params.notificationDate,
             params.createdAt,
             params.updatedAt,
             params.isActive,
             params.theme,
-            params.customDate,
             params.character,
         );
     }

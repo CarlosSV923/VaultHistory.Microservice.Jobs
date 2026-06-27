@@ -4,7 +4,7 @@ export enum ErrorCodes {
     ValidationError = 'Error.ValidationError',
     NullValue = 'Error.NullValue',
     AuthenticationError = 'Error.AuthenticationError',
-    SDKError = 'Error.SDKError',
+    MessageError = 'Error.KafkaError',
     None = 'Error.None',
     InternalServerError = 'Error.InternalServerError',
 }
@@ -39,7 +39,7 @@ export class ErrorEntity {
         return new ErrorEntity(ErrorCodes.ValidationError, message);
     }
 
-    static SDKError(message: string): ErrorEntity {
-        return new ErrorEntity(ErrorCodes.SDKError, message);
+    static MessageError(message: string): ErrorEntity {
+        return new ErrorEntity(ErrorCodes.MessageError, message);
     }
 }
