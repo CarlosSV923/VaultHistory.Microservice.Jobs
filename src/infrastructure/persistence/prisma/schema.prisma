@@ -14,17 +14,20 @@ datasource db {
 }
 
 model User {
-  id               String    @id @default(uuid())
-  fullname         String
-  email            String
-  birthDate        DateTime?
-  notification     Boolean   @default(false)
-  notificationDate DateTime?
-  createdAt        DateTime
-  updatedAt        DateTime?
-  isActive         Boolean   @default(true)
-  theme            String?
-  character        String?
+  id                 String    @id @default(uuid())
+  fullname           String
+  email              String
+  birthDate          DateTime?
+  notification       Boolean   @default(false)
+  notificationStatus String?
+  notificationDate   DateTime?
+  createdAt          DateTime
+  updatedAt          DateTime?
+  isActive           Boolean   @default(true)
+  theme              String?
+  character          String?
+  passwordHash       String
+  passwordSalt       String
 
   @@map("users")
 }

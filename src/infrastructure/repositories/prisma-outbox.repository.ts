@@ -11,11 +11,17 @@ export class PrismaOutboxRepository implements OutboxRepositoryPort {
 
     constructor(private readonly prismaService: PrismaService) {}
 
-    async getByStatus(status: string): Promise<ResultEntity<OutboxEntity[]>> {
+    async getByStatusAndType(
+        status: string,
+        types: string[],
+    ): Promise<ResultEntity<OutboxEntity[]>> {
         try {
             const messages = await this.prismaService.outbox.findMany({
                 where: {
                     status,
+                    type: {
+                        in: types,
+                    },
                 },
                 orderBy: {
                     occurredOn: 'asc',
@@ -46,7 +52,7 @@ export class PrismaOutboxRepository implements OutboxRepositoryPort {
 
     async updateStatusByIds(
         ids: string[],
-        data: { status: string; updateAt: Date; error: string },
+        data: { status: string; error: string | null },
     ): Promise<ResultEntity<void>> {
         try {
             await this.prismaService.outbox.updateMany({
@@ -57,7 +63,7 @@ export class PrismaOutboxRepository implements OutboxRepositoryPort {
                 },
                 data: {
                     status: data.status,
-                    updateAt: data.updateAt,
+                    updateAt: new Date(),
                     error: data.error,
                 },
             });

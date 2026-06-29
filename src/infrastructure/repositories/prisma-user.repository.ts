@@ -4,20 +4,51 @@ import { UserRepositoryPort } from 'src/domain/users/ports/user-repository.port'
 import { UserEntity } from 'src/domain/users/user.entity';
 import { PrismaService } from '../persistence/prisma/prisma.service';
 import { ErrorEntity } from 'src/domain/abstractions/error.entity';
+import { NotificationStatus } from 'src/domain/users/notification-status.enum';
 
 @Injectable()
 export class PrismaUserRepository implements UserRepositoryPort {
     private readonly logger = new Logger(PrismaUserRepository.name);
 
     constructor(private readonly prismaService: PrismaService) {}
-
-    async getByBirthDateNotification(date: Date): Promise<ResultEntity<UserEntity[]>> {
+    async updateNotificationStatusByIds(
+        ids: string[],
+        data: { status: string; notificationDate: Date | null },
+    ): Promise<ResultEntity<void>> {
         try {
-            const start = new Date(date);
+            await this.prismaService.user.updateMany({
+                where: {
+                    id: {
+                        in: ids,
+                    },
+                },
+                data: {
+                    notificationStatus: data.status,
+                    notificationDate: data.notificationDate,
+                },
+            });
+
+            return ResultEntity.success();
+        } catch (error) {
+            this.logger.error('Error updating users notification status', error);
+
+            return ResultEntity.failure(
+                ErrorEntity.DatabaseError('No se pudieron actualizar los usuarios'),
+            );
+        }
+    }
+
+    async getToNotifyByBirthday(birthdate: Date): Promise<ResultEntity<UserEntity[]>> {
+        try {
+            const start = new Date(birthdate);
             start.setHours(0, 0, 0, 0);
 
             const end = new Date(start);
             end.setDate(end.getDate() + 1);
+
+            const startOfYear = new Date(birthdate);
+            startOfYear.setMonth(0, 1);
+            startOfYear.setHours(0, 0, 0, 0);
 
             const users = await this.prismaService.user.findMany({
                 where: {
@@ -27,6 +58,19 @@ export class PrismaUserRepository implements UserRepositoryPort {
                         gte: start,
                         lt: end,
                     },
+                    notificationStatus: {
+                        not: NotificationStatus.IN_PROCESS,
+                    },
+                    OR: [
+                        {
+                            notificationDate: null,
+                        },
+                        {
+                            notificationDate: {
+                                lt: startOfYear,
+                            },
+                        },
+                    ],
                 },
             });
 
@@ -38,6 +82,7 @@ export class PrismaUserRepository implements UserRepositoryPort {
                         email: user.email,
                         brithDate: user.birthDate,
                         notification: user.notification,
+                        notificatiomStatus: user.notificationStatus,
                         notificationDate: user.notificationDate,
                         createdAt: user.createdAt,
                         updatedAt: user.updatedAt,

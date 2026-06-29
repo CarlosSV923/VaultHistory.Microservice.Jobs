@@ -5,6 +5,7 @@ export class UserEntity {
         private readonly _email: string,
         private readonly _birthDate: Date | null,
         private readonly _notification: boolean,
+        private readonly _notificationStatus: string | null,
         private readonly _notificationDate: Date | null,
         private readonly _createdAt: Date,
         private readonly _updatedAt: Date | null,
@@ -57,12 +58,17 @@ export class UserEntity {
         return this._notificationDate;
     }
 
+    get notificationStatus(): string | null {
+        return this._notificationStatus;
+    }
+
     static restore(params: {
         id: string;
         fullname: string;
         email: string;
         brithDate: Date | null;
         notification: boolean;
+        notificatiomStatus: string | null;
         notificationDate: Date | null;
         createdAt: Date;
         updatedAt: Date | null;
@@ -76,6 +82,7 @@ export class UserEntity {
             params.email,
             params.brithDate,
             params.notification,
+            params.notificatiomStatus,
             params.notificationDate,
             params.createdAt,
             params.updatedAt,

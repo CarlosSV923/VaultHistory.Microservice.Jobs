@@ -2,12 +2,13 @@ import { type ResultEntity } from 'src/domain/abstractions/result.entity';
 
 export class NotifyMessage {
     userId!: string;
+    email!: string;
     fullname!: string;
     birthDate?: Date | null;
-    theme?: string | null;
 }
 
 export class NotifyHistoryMessage extends NotifyMessage {
+    theme?: string | null;
     character?: string | null;
 }
 
