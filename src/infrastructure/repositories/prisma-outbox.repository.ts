@@ -4,6 +4,7 @@ import { OutboxEntity } from 'src/domain/outbox/outbox.entity';
 import { OutboxRepositoryPort } from 'src/domain/outbox/ports/outbox-repository.port';
 import { PrismaService } from '../persistence/prisma/prisma.service';
 import { ErrorEntity } from 'src/domain/abstractions/error.entity';
+import { RepositoryUtils } from './repository-utils';
 
 @Injectable()
 export class PrismaOutboxRepository implements OutboxRepositoryPort {
@@ -15,6 +16,7 @@ export class PrismaOutboxRepository implements OutboxRepositoryPort {
         status: string,
         types: string[],
     ): Promise<ResultEntity<OutboxEntity[]>> {
+        const baseMessage = `el estado: ${status} y los tipos: ${types.join(',')}`;
         try {
             const messages = await this.prismaService.outbox.findMany({
                 where: {
@@ -27,6 +29,12 @@ export class PrismaOutboxRepository implements OutboxRepositoryPort {
                     occurredOn: 'asc',
                 },
             });
+
+            if (messages.length <= 0) {
+                const message = `No se encontraron registros outbox para ${baseMessage}`;
+                this.logger.warn(message);
+                return ResultEntity.failure(ErrorEntity.NotFound(message));
+            }
 
             return ResultEntity.success(
                 messages.map((message) =>
@@ -42,11 +50,8 @@ export class PrismaOutboxRepository implements OutboxRepositoryPort {
                 ),
             );
         } catch (error) {
-            this.logger.error('Error getting outbox messages by status', error);
-
-            return ResultEntity.failure(
-                ErrorEntity.DatabaseError('No se pudieron obtener los mensajes del outbox'),
-            );
+            const message = `Error al consultar registros outbox para ${baseMessage}`;
+            return RepositoryUtils.processError(this.logger, message, error);
         }
     }
 
@@ -54,8 +59,9 @@ export class PrismaOutboxRepository implements OutboxRepositoryPort {
         ids: string[],
         data: { status: string; error: string | null },
     ): Promise<ResultEntity<void>> {
+        const idsJoin = ids.join(',');
         try {
-            await this.prismaService.outbox.updateMany({
+            const result = await this.prismaService.outbox.updateMany({
                 where: {
                     id: {
                         in: ids,
@@ -68,13 +74,16 @@ export class PrismaOutboxRepository implements OutboxRepositoryPort {
                 },
             });
 
+            if (result.count <= 0) {
+                const message = `No se encontraron registros outbox a actualizar para los ids: ${idsJoin}`;
+                this.logger.warn(message);
+                return ResultEntity.failure(ErrorEntity.NotFound(message));
+            }
+
             return ResultEntity.success();
         } catch (error) {
-            this.logger.error('Error updating outbox messages status', error);
-
-            return ResultEntity.failure(
-                ErrorEntity.DatabaseError('No se pudieron actualizar los mensajes del outbox'),
-            );
+            const baseMessage = `Error actualizando registros outbox para los ids: ${idsJoin}`;
+            return RepositoryUtils.processError(this.logger, baseMessage, error);
         }
     }
 }

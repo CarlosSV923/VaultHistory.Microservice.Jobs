@@ -5,13 +5,16 @@ import { UserEntity } from 'src/domain/users/user.entity';
 import { PrismaService } from '../persistence/prisma/prisma.service';
 import { ErrorEntity } from 'src/domain/abstractions/error.entity';
 import { NotificationStatus } from 'src/domain/users/notification-status.enum';
+import { RepositoryUtils } from './repository-utils';
 
 @Injectable()
 export class PrismaUserRepository implements UserRepositoryPort {
     private readonly logger = new Logger(PrismaUserRepository.name);
 
     constructor(private readonly prismaService: PrismaService) {}
+
     async getByIds(ids: string[]): Promise<ResultEntity<UserEntity[]>> {
+        const idsJoin = ids.join(',');
         try {
             const users = await this.prismaService.user.findMany({
                 where: {
@@ -21,6 +24,13 @@ export class PrismaUserRepository implements UserRepositoryPort {
                     },
                 },
             });
+
+            if (users.length <= 0) {
+                const message = `No se encontraron usuarios para los ids: ${idsJoin}`;
+                this.logger.warn(message);
+                return ResultEntity.failure(ErrorEntity.NotFound(message));
+            }
+
             return ResultEntity.success(
                 users.map((user) =>
                     UserEntity.restore({
@@ -40,19 +50,17 @@ export class PrismaUserRepository implements UserRepositoryPort {
                 ),
             );
         } catch (error) {
-            this.logger.error(`Error getting users by ids`, error);
-
-            return ResultEntity.failure(
-                ErrorEntity.DatabaseError('No se pudieron obtener los usuarios por ids'),
-            );
+            const baseMessage = `Error getting users with ids: ${idsJoin}`;
+            return RepositoryUtils.processError(this.logger, baseMessage, error);
         }
     }
     async updateNotificationStatusByIds(
         ids: string[],
         data: { notificationStatus: string; notificationDate: Date | null },
     ): Promise<ResultEntity<void>> {
+        const idsJoin = ids.join(',');
         try {
-            await this.prismaService.user.updateMany({
+            const result = await this.prismaService.user.updateMany({
                 where: {
                     id: {
                         in: ids,
@@ -65,13 +73,16 @@ export class PrismaUserRepository implements UserRepositoryPort {
                 },
             });
 
+            if (result.count <= 0) {
+                const message = `No se encontraron usuarios a actualizar para los ids: ${idsJoin}`;
+                this.logger.warn(message);
+                return ResultEntity.failure(ErrorEntity.NotFound(message));
+            }
+
             return ResultEntity.success();
         } catch (error) {
-            this.logger.error('Error updating users notification status', error);
-
-            return ResultEntity.failure(
-                ErrorEntity.DatabaseError('No se pudieron actualizar los usuarios'),
-            );
+            const baseMessage = `Error actualizando usuarios para los ids: ${idsJoin}`;
+            return RepositoryUtils.processError(this.logger, baseMessage, error);
         }
     }
 
@@ -111,6 +122,12 @@ export class PrismaUserRepository implements UserRepositoryPort {
                 },
             });
 
+            if (users.length <= 0) {
+                const message = `No se encontraron usuarios por fecha de nacimiento`;
+                this.logger.warn(message);
+                return ResultEntity.failure(ErrorEntity.NotFound(message));
+            }
+
             return ResultEntity.success(
                 users.map((user) =>
                     UserEntity.restore({
@@ -130,13 +147,8 @@ export class PrismaUserRepository implements UserRepositoryPort {
                 ),
             );
         } catch (error) {
-            this.logger.error(`Error getting users by birth date`, error);
-
-            return ResultEntity.failure(
-                ErrorEntity.DatabaseError(
-                    'No se pudieron obtener los usuarios por fecha de nacimiento',
-                ),
-            );
+            const baseMessage = `Error obteniendo usurios por fecha de nacimiento`;
+            return RepositoryUtils.processError(this.logger, baseMessage, error);
         }
     }
 }

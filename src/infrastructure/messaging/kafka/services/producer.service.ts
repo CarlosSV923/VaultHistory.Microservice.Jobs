@@ -70,7 +70,9 @@ export class ProducerService implements OnModuleInit, OnModuleDestroy {
         } catch (error) {
             const isError = error instanceof Error;
             const baseMessage = `Error - kafka topic: ${topic}`;
-            const message = baseMessage + (isError ? ' - message: ' + error.message : '');
+            const message =
+                baseMessage +
+                (isError ? ' - message: ' + error.message + ' - stack: ' + error.stack : '');
             return ResultEntity.failure(ErrorEntity.MessageError(message));
         }
     }
