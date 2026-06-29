@@ -3,9 +3,10 @@ import type { UserEntity } from '../user.entity';
 
 export interface UserRepositoryPort {
     getToNotifyByBirthday(birthdate: Date): Promise<ResultEntity<UserEntity[]>>;
+    getByIds(ids: string[]): Promise<ResultEntity<UserEntity[]>>;
     updateNotificationStatusByIds(
         ids: string[],
-        data: { status: string; notificationDate: Date | null },
+        data: { notificationStatus: string; notificationDate: Date | null },
     ): Promise<ResultEntity<void>>;
 }
 

@@ -63,7 +63,7 @@ export class PrismaOutboxRepository implements OutboxRepositoryPort {
                 },
                 data: {
                     status: data.status,
-                    updateAt: new Date(),
+                    updateAt: new Date(Date.now()),
                     error: data.error,
                 },
             });

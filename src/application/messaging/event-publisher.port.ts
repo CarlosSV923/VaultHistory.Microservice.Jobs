@@ -20,3 +20,5 @@ export interface EventPublisherPort {
     notifyHistoryToUser(messages: NotifyHistoryMessage[]): Promise<ResultEntity<void>>;
     notifyOutboxToUser(messages: NotifyOutboxMessage[]): Promise<ResultEntity<void>>;
 }
+
+export const EventPublisherPortToken = Symbol('EventPublisherPort');

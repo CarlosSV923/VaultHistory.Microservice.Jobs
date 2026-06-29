@@ -11,9 +11,45 @@ export class PrismaUserRepository implements UserRepositoryPort {
     private readonly logger = new Logger(PrismaUserRepository.name);
 
     constructor(private readonly prismaService: PrismaService) {}
+    async getByIds(ids: string[]): Promise<ResultEntity<UserEntity[]>> {
+        try {
+            const users = await this.prismaService.user.findMany({
+                where: {
+                    isActive: true,
+                    id: {
+                        in: ids,
+                    },
+                },
+            });
+            return ResultEntity.success(
+                users.map((user) =>
+                    UserEntity.restore({
+                        id: user.id,
+                        fullname: user.fullname,
+                        email: user.email,
+                        brithDate: user.birthDate,
+                        notification: user.notification,
+                        notificatiomStatus: user.notificationStatus,
+                        notificationDate: user.notificationDate,
+                        createdAt: user.createdAt,
+                        updatedAt: user.updatedAt,
+                        isActive: user.isActive,
+                        theme: user.theme,
+                        character: user.character,
+                    }),
+                ),
+            );
+        } catch (error) {
+            this.logger.error(`Error getting users by ids`, error);
+
+            return ResultEntity.failure(
+                ErrorEntity.DatabaseError('No se pudieron obtener los usuarios por ids'),
+            );
+        }
+    }
     async updateNotificationStatusByIds(
         ids: string[],
-        data: { status: string; notificationDate: Date | null },
+        data: { notificationStatus: string; notificationDate: Date | null },
     ): Promise<ResultEntity<void>> {
         try {
             await this.prismaService.user.updateMany({
@@ -23,8 +59,9 @@ export class PrismaUserRepository implements UserRepositoryPort {
                     },
                 },
                 data: {
-                    notificationStatus: data.status,
+                    notificationStatus: data.notificationStatus,
                     notificationDate: data.notificationDate,
+                    updatedAt: new Date(Date.now()),
                 },
             });
 
