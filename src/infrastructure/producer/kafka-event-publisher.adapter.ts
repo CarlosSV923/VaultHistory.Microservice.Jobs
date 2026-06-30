@@ -10,8 +10,8 @@ import { ResultEntity } from 'src/domain/abstractions/result.entity';
 import { ProducerEvent } from '../messaging/kafka/types/producer-event.type';
 
 @Injectable()
-export class KakfakEventPublisherAdapter implements EventPublisherPort {
-    private readonly logger = new Logger(KakfakEventPublisherAdapter.name);
+export class KafkaEventPublisherAdapter implements EventPublisherPort {
+    private readonly logger = new Logger(KafkaEventPublisherAdapter.name);
 
     private readonly notifyHistoryTopic = 'notify-history-topic-id';
     private readonly notifyOutboxTopic = 'notify-outbox-topic-id';
