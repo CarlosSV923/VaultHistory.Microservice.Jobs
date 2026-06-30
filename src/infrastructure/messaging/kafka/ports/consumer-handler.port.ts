@@ -1,5 +1,6 @@
+import { type ResultEntity } from 'src/domain/abstractions/result.entity';
 import { type ConsumerMetadata } from '../types/consumer-metadata.type';
 
-export interface ConsumerHandler<T = unknown> {
-    handle(message: T | string, metadata: ConsumerMetadata): Promise<void>;
+export interface ConsumerHandler<T> {
+    handle(message: T, metadata: ConsumerMetadata): Promise<ResultEntity<void>>;
 }

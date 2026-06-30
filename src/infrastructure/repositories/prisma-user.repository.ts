@@ -6,12 +6,16 @@ import { PrismaService } from '../persistence/prisma/prisma.service';
 import { ErrorEntity } from 'src/domain/abstractions/error.entity';
 import { NotificationStatus } from 'src/domain/users/notification-status.enum';
 import { RepositoryUtils } from './repository-utils';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class PrismaUserRepository implements UserRepositoryPort {
     private readonly logger = new Logger(PrismaUserRepository.name);
 
-    constructor(private readonly prismaService: PrismaService) {}
+    constructor(
+        private readonly prismaService: PrismaService,
+        private readonly configService: ConfigService,
+    ) {}
 
     async getByIds(ids: string[]): Promise<ResultEntity<UserEntity[]>> {
         const idsJoin = ids.join(',');
@@ -120,6 +124,7 @@ export class PrismaUserRepository implements UserRepositoryPort {
                         },
                     ],
                 },
+                take: this.configService.get<number>('USER_QUERY_LIMIT'),
             });
 
             if (users.length <= 0) {

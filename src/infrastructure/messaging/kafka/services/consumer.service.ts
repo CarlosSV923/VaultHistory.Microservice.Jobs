@@ -86,6 +86,14 @@ export class ConsumerService implements OnModuleInit, OnModuleDestroy {
                 eachMessage: async ({ message, partition, topic }) => {
                     const handlers = this.consumersTopicMap.get(topic) || [];
                     const parsedMessage = this.parseMessage(message.value?.toString() ?? '');
+
+                    if (typeof parsedMessage !== 'object') {
+                        this.logger.error(
+                            `No se puede procesar mensaje para el topic: ${topic} - Message: ${JSON.stringify(parsedMessage)} - No cumple la estructura definida`,
+                        );
+                        return;
+                    }
+
                     await Promise.all(
                         handlers.map(async (handler) => {
                             try {
@@ -98,9 +106,10 @@ export class ConsumerService implements OnModuleInit, OnModuleDestroy {
                                     message,
                                 });
                             } catch (error) {
+                                const isError = error instanceof Error;
                                 this.logger.error(
-                                    `Error processing message from topic ${topic}`,
-                                    error,
+                                    `Error al procesar mensaje en el topic ${topic} - Message: ${JSON.stringify(parsedMessage)}${isError ? ' - Error: ' + error.message : ''}`,
+                                    isError ? error.stack : '',
                                 );
                             }
                         }),

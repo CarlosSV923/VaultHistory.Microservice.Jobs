@@ -5,12 +5,16 @@ import { OutboxRepositoryPort } from 'src/domain/outbox/ports/outbox-repository.
 import { PrismaService } from '../persistence/prisma/prisma.service';
 import { ErrorEntity } from 'src/domain/abstractions/error.entity';
 import { RepositoryUtils } from './repository-utils';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class PrismaOutboxRepository implements OutboxRepositoryPort {
     private readonly logger = new Logger(PrismaOutboxRepository.name);
 
-    constructor(private readonly prismaService: PrismaService) {}
+    constructor(
+        private readonly prismaService: PrismaService,
+        private readonly configService: ConfigService,
+    ) {}
 
     async getByStatusAndType(
         status: string,
@@ -28,6 +32,7 @@ export class PrismaOutboxRepository implements OutboxRepositoryPort {
                 orderBy: {
                     occurredOn: 'asc',
                 },
+                take: this.configService.get<number>('OUTBOX_QUERY_LIMIT'),
             });
 
             if (messages.length <= 0) {
