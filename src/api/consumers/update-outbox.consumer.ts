@@ -1,8 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ConsumerHandler } from '../messaging/kafka/ports/consumer-handler.port';
-import { UpdateUsersUseCase, UpdateUsersUseCasePayload } from 'src/application/use-cases';
-import { ConsumerMetadata } from '../messaging/kafka/types/consumer-metadata.type';
-import { ResultEntity } from 'src/domain/abstractions/result.entity';
+import { UpdateUsersUseCase, UpdateUsersUseCasePayload } from '@application/use-cases';
+import { ResultEntity } from '@domain/abstractions/result.entity';
+import { ConsumerHandler } from '@infrastructure/messaging/kafka/ports/consumer-handler.port';
+import { ConsumerMetadata } from '@infrastructure/messaging/kafka/types/consumer-metadata.type';
 
 export const UpdateUsersConsumerId = Symbol('UpdateUsersConsumer');
 

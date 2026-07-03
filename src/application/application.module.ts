@@ -1,30 +1,10 @@
 import { Module } from '@nestjs/common';
-import { EventPublisherPortToken } from './messaging/event-publisher.port';
-import {
-    NotifyOutboxUseCase,
-    NotifyUserUseCase,
-    ProcessOutboxUseCase,
-    UpdateOutboxUseCase,
-    UpdateUsersUseCase,
-} from './use-cases';
-import { KafkaEventPublisherAdapter } from 'src/infrastructure/producer/kafka-event-publisher.adapter';
-
-const useCases = [
-    NotifyOutboxUseCase,
-    NotifyUserUseCase,
-    ProcessOutboxUseCase,
-    UpdateOutboxUseCase,
-    UpdateUsersUseCase,
-];
+import { useCases } from './use-cases';
+import { InfrastructureModule } from '@infrastructure/infrastructure.module';
 
 @Module({
-    providers: [
-        ...useCases,
-        {
-            provide: EventPublisherPortToken,
-            useClass: KafkaEventPublisherAdapter,
-        },
-    ],
+    providers: [...useCases],
     exports: useCases,
+    imports: [InfrastructureModule],
 })
 export class ApplicationModule {}

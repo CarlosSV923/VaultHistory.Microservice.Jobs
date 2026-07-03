@@ -1,9 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ResultEntity } from 'src/domain/abstractions/result.entity';
-import { OutboxEntity } from 'src/domain/outbox/outbox.entity';
-import { OutboxRepositoryPort } from 'src/domain/outbox/ports/outbox-repository.port';
+import { ResultEntity } from '@domain/abstractions/result.entity';
+import { OutboxEntity } from '@domain/outbox/outbox.entity';
+import { OutboxRepositoryPort } from '@domain/outbox/ports/outbox-repository.port';
 import { PrismaService } from '../persistence/prisma/prisma.service';
-import { ErrorEntity } from 'src/domain/abstractions/error.entity';
+import { ErrorEntity } from '@domain/abstractions/error.entity';
 import { RepositoryUtils } from './repository-utils';
 import { ConfigService } from '@nestjs/config';
 
@@ -22,6 +22,7 @@ export class PrismaOutboxRepository implements OutboxRepositoryPort {
     ): Promise<ResultEntity<OutboxEntity[]>> {
         const baseMessage = `el estado: ${status} y los tipos: ${types.join(',')}`;
         try {
+            const take = Number(this.configService.get<number>('OUTBOX_QUERY_LIMIT'));
             const messages = await this.prismaService.outbox.findMany({
                 where: {
                     status,
@@ -32,7 +33,7 @@ export class PrismaOutboxRepository implements OutboxRepositoryPort {
                 orderBy: {
                     occurredOn: 'asc',
                 },
-                take: this.configService.get<number>('OUTBOX_QUERY_LIMIT'),
+                take,
             });
 
             if (messages.length <= 0) {

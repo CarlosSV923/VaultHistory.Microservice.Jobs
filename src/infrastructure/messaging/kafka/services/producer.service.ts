@@ -3,8 +3,8 @@ import { KAFKA_CLIENT_CONFIG, KafkaClientConfig } from '../config/kafka-client.c
 import { CompressionTypes, Producer, RecordMetadata } from 'kafkajs';
 import { ProducerEvent } from '../types/producer-event.type';
 import { ProducerMetadata } from '../types/producer-metadata.type';
-import { ResultEntity } from 'src/domain/abstractions/result.entity';
-import { ErrorEntity } from 'src/domain/abstractions/error.entity';
+import { ResultEntity } from '@domain/abstractions/result.entity';
+import { ErrorEntity } from '@domain/abstractions/error.entity';
 
 @Injectable()
 export class ProducerService implements OnModuleInit, OnModuleDestroy {
@@ -21,7 +21,7 @@ export class ProducerService implements OnModuleInit, OnModuleDestroy {
     async onModuleDestroy(): Promise<void> {
         try {
             await this.producerInstance.disconnect();
-            this.logger.log('Successfully disconnected from Kafka ');
+            this.logger.log('Successfully disconnected from Kafka broker for producing messages');
         } catch (error) {
             this.logger.error('Error disconnecting from Kafka', error);
         }
@@ -30,7 +30,7 @@ export class ProducerService implements OnModuleInit, OnModuleDestroy {
     async onModuleInit(): Promise<void> {
         try {
             await this.producerInstance.connect();
-            this.logger.log('Successfully connected to Kafka');
+            this.logger.log('Successfully connected to Kafka broker for producing messages');
         } catch (error) {
             this.logger.error('Error connecting to Kafka', error);
         }

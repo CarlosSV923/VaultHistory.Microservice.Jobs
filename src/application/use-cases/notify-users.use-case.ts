@@ -1,10 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { UserRepositoryPortToken } from 'src/domain/users/ports/user-repository.port';
-import type { UserRepositoryPort } from 'src/domain/users/ports/user-repository.port';
+import { UserRepositoryPortToken } from '@domain/users/ports/user-repository.port';
+import type { UserRepositoryPort } from '@domain/users/ports/user-repository.port';
 import type { EventPublisherPort, NotifyHistoryMessage } from '../messaging/event-publisher.port';
 import { EventPublisherPortToken } from '../messaging/event-publisher.port';
-import { ResultEntity } from 'src/domain/abstractions/result.entity';
-import { NotificationStatus } from 'src/domain/users/notification-status.enum';
+import { ResultEntity } from '@domain/abstractions/result.entity';
+import { NotificationStatus } from '@domain/users/notification-status.enum';
 
 @Injectable()
 export class NotifyUserUseCase {

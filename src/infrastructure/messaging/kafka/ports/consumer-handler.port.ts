@@ -1,4 +1,4 @@
-import { type ResultEntity } from 'src/domain/abstractions/result.entity';
+import { type ResultEntity } from '@domain/abstractions/result.entity';
 import { type ConsumerMetadata } from '../types/consumer-metadata.type';
 
 export interface ConsumerHandler<T> {

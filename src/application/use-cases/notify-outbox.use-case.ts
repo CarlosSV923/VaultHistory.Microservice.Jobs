@@ -1,13 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { OutboxRepositoryPortToken } from 'src/domain/outbox/ports/outbox-repository.port';
-import type { OutboxRepositoryPort } from 'src/domain/outbox/ports/outbox-repository.port';
+import { OutboxRepositoryPortToken } from '@domain/outbox/ports/outbox-repository.port';
+import type { OutboxRepositoryPort } from '@domain/outbox/ports/outbox-repository.port';
 import type { EventPublisherPort, NotifyOutboxMessage } from '../messaging/event-publisher.port';
-import { UserRepositoryPortToken } from 'src/domain/users/ports/user-repository.port';
-import type { UserRepositoryPort } from 'src/domain/users/ports/user-repository.port';
+import { UserRepositoryPortToken } from '@domain/users/ports/user-repository.port';
+import type { UserRepositoryPort } from '@domain/users/ports/user-repository.port';
 import { EventPublisherPortToken } from '../messaging/event-publisher.port';
-import { ResultEntity } from 'src/domain/abstractions/result.entity';
-import { OutboxStatus } from 'src/domain/outbox/outbox-status.enum';
-import { OutboxType } from 'src/domain/outbox/outbox-type.enum';
+import { ResultEntity } from '@domain/abstractions/result.entity';
+import { OutboxStatus } from '@domain/outbox/outbox-status.enum';
+import { OutboxType } from '@domain/outbox/outbox-type.enum';
 @Injectable()
 export class NotifyOutboxUseCase {
     constructor(

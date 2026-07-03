@@ -1,4 +1,4 @@
-import type { ResultEntity } from 'src/domain/abstractions/result.entity';
+import type { ResultEntity } from '@domain/abstractions/result.entity';
 import type { OutboxEntity } from '../outbox.entity';
 
 export interface OutboxRepositoryPort {

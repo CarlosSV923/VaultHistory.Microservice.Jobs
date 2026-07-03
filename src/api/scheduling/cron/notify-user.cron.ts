@@ -1,24 +1,24 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
-import { NotifyOutboxUseCase } from 'src/application/use-cases';
+import { NotifyUserUseCase } from '@application/use-cases';
 import { CronJob } from 'cron';
 
 @Injectable()
-export class NotifyOutboxCron implements OnModuleInit {
+export class NotifyUserCron implements OnModuleInit {
     constructor(
         private readonly schedulerRegistry: SchedulerRegistry,
-        private readonly notifyOutboxUseCase: NotifyOutboxUseCase,
+        private readonly notifyUserUseCase: NotifyUserUseCase,
         private readonly configService: ConfigService,
     ) {}
 
-    private readonly logger = new Logger(NotifyOutboxCron.name);
+    private readonly logger = new Logger(NotifyUserCron.name);
 
     onModuleInit() {
-        const cronName = 'notify-outbox-cron';
+        const cronName = 'notify-user-cron';
 
         try {
-            const cronExpression = this.configService.get<string>('NOTIFY_OUTBOX_CRON_EXPRESSION');
+            const cronExpression = this.configService.get<string>('NOTIFY_USER_CRON_EXPRESSION');
 
             if (!cronExpression) {
                 this.logger.error(`Error al agregar cron ${cronName} - Expresion no configurada`);
@@ -26,7 +26,7 @@ export class NotifyOutboxCron implements OnModuleInit {
             }
 
             const job = new CronJob(cronExpression, async () => {
-                await this.notifyOutboxUseCase.execute();
+                await this.notifyUserUseCase.execute(new Date(Date.now()));
             });
 
             this.schedulerRegistry.addCronJob(cronName, job);

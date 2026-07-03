@@ -4,17 +4,17 @@ import {
     NotifyHistoryMessage,
     NotifyMessage,
     NotifyOutboxMessage,
-} from 'src/application/messaging/event-publisher.port';
-import { ProducerService } from '../messaging/kafka/services/producer.service';
-import { ResultEntity } from 'src/domain/abstractions/result.entity';
-import { ProducerEvent } from '../messaging/kafka/types/producer-event.type';
+} from '@application/messaging/event-publisher.port';
+import { ProducerService } from '../../infrastructure/messaging/kafka/services/producer.service';
+import { ResultEntity } from '@domain/abstractions/result.entity';
+import { ProducerEvent } from '../../infrastructure/messaging/kafka/types/producer-event.type';
+
+export const KafkaNotifyHistoryTopicId = 'KAFKA_NOTIFY_HISTORY_TOPIC_ID';
+export const KafkaNotifyOutboxTopicId = 'KAFKA_NOTIFY_OUTBOX_TOPIC_ID';
 
 @Injectable()
 export class KafkaEventPublisherAdapter implements EventPublisherPort {
     private readonly logger = new Logger(KafkaEventPublisherAdapter.name);
-
-    private readonly notifyHistoryTopic = 'notify-history-topic-id';
-    private readonly notifyOutboxTopic = 'notify-outbox-topic-id';
 
     constructor(private readonly producerService: ProducerService) {}
 
@@ -46,9 +46,9 @@ export class KafkaEventPublisherAdapter implements EventPublisherPort {
     }
 
     async notifyHistoryToUser(messages: NotifyHistoryMessage[]): Promise<ResultEntity<void>> {
-        return this.notify(messages, this.notifyHistoryTopic);
+        return this.notify(messages, KafkaNotifyHistoryTopicId);
     }
-    notifyOutboxToUser(messages: NotifyOutboxMessage[]): Promise<ResultEntity<void>> {
-        return this.notify(messages, this.notifyOutboxTopic);
+    async notifyOutboxToUser(messages: NotifyOutboxMessage[]): Promise<ResultEntity<void>> {
+        return this.notify(messages, KafkaNotifyOutboxTopicId);
     }
 }

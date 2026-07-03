@@ -2,7 +2,7 @@ import { type Consumer, type Producer } from 'kafkajs';
 import { type ConsumerConfig } from './consumer.config';
 import { type ProducerConfig } from './producer.config';
 
-export const KAFKA_CLIENT_CONFIG = 'KAFKA_CLIENT_CONFIG';
+export const KAFKA_CLIENT_CONFIG = Symbol('KAFKA_CLIENT_CONFIG');
 
 export class KafkaClientConfig {
     constructor(

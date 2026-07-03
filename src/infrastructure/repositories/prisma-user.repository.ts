@@ -1,10 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ResultEntity } from 'src/domain/abstractions/result.entity';
-import { UserRepositoryPort } from 'src/domain/users/ports/user-repository.port';
-import { UserEntity } from 'src/domain/users/user.entity';
+import { ResultEntity } from '@domain/abstractions/result.entity';
+import { UserRepositoryPort } from '@domain/users/ports/user-repository.port';
+import { UserEntity } from '@domain/users/user.entity';
 import { PrismaService } from '../persistence/prisma/prisma.service';
-import { ErrorEntity } from 'src/domain/abstractions/error.entity';
-import { NotificationStatus } from 'src/domain/users/notification-status.enum';
+import { ErrorEntity } from '@domain/abstractions/error.entity';
+import { NotificationStatus } from '@domain/users/notification-status.enum';
 import { RepositoryUtils } from './repository-utils';
 import { ConfigService } from '@nestjs/config';
 
@@ -92,6 +92,8 @@ export class PrismaUserRepository implements UserRepositoryPort {
 
     async getToNotifyByBirthday(birthdate: Date): Promise<ResultEntity<UserEntity[]>> {
         try {
+            const take = Number(this.configService.get<number>('USER_QUERY_LIMIT'));
+
             const start = new Date(birthdate);
             start.setHours(0, 0, 0, 0);
 
@@ -124,7 +126,7 @@ export class PrismaUserRepository implements UserRepositoryPort {
                         },
                     ],
                 },
-                take: this.configService.get<number>('USER_QUERY_LIMIT'),
+                take,
             });
 
             if (users.length <= 0) {

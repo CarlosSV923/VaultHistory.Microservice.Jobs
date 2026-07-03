@@ -1,9 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { ResultEntity } from 'src/domain/abstractions/result.entity';
-import { OutboxStatus } from 'src/domain/outbox/outbox-status.enum';
-import { OutboxType } from 'src/domain/outbox/outbox-type.enum';
-import { OutboxRepositoryPortToken } from 'src/domain/outbox/ports/outbox-repository.port';
-import type { OutboxRepositoryPort } from 'src/domain/outbox/ports/outbox-repository.port';
+import { ResultEntity } from '@domain/abstractions/result.entity';
+import { OutboxStatus } from '@domain/outbox/outbox-status.enum';
+import { OutboxType } from '@domain/outbox/outbox-type.enum';
+import { OutboxRepositoryPortToken } from '@domain/outbox/ports/outbox-repository.port';
+import type { OutboxRepositoryPort } from '@domain/outbox/ports/outbox-repository.port';
 
 @Injectable()
 export class ProcessOutboxUseCase {
