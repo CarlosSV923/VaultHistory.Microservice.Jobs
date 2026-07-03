@@ -1,19 +1,19 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { UpdateUsersUseCase, UpdateUsersUseCasePayload } from '@application/use-cases';
+import { UpdateOutboxUseCase, UpdateOutboxUseCasePayload } from '@application/use-cases';
 import { ResultEntity } from '@domain/abstractions/result.entity';
 import { ConsumerHandler } from '@infrastructure/messaging/kafka/ports/consumer-handler.port';
 import { ConsumerMetadata } from '@infrastructure/messaging/kafka/types/consumer-metadata.type';
 
-export const UpdateUsersConsumerId = Symbol('UpdateUsersConsumer');
+export const UpdateOutboxConsumerId = Symbol('UpdateOutboxConsumer');
 
 @Injectable()
-export class UpdateUsersConsumer implements ConsumerHandler<UpdateUsersUseCasePayload> {
-    private readonly logger = new Logger(UpdateUsersConsumer.name);
+export class UpdateOutboxConsumer implements ConsumerHandler<UpdateOutboxUseCasePayload> {
+    private readonly logger = new Logger(UpdateOutboxConsumer.name);
 
-    constructor(private readonly useCase: UpdateUsersUseCase) {}
+    constructor(private readonly useCase: UpdateOutboxUseCase) {}
 
     handle(
-        message: UpdateUsersUseCasePayload,
+        message: UpdateOutboxUseCasePayload,
         metadata: ConsumerMetadata,
     ): Promise<ResultEntity<void>> {
         this.logger.verbose(

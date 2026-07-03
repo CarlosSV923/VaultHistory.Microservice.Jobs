@@ -1,5 +1,5 @@
-import { UpdateUsersConsumer, UpdateUsersConsumerId } from './update-outbox.consumer';
-import { UpdateOutboxConsumer, UpdateOutboxConsumerId } from './update-users.consumer';
+import { UpdateUsersConsumer, UpdateUsersConsumerId } from './update-user.consumer';
+import { UpdateOutboxConsumer, UpdateOutboxConsumerId } from './update-outbox.consumer';
 
 export const consumers = [
     {

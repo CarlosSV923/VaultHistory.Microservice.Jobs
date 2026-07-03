@@ -2,7 +2,6 @@
     "compilerOptions": {
         "module": "nodenext",
         "moduleResolution": "nodenext",
-        "types": ["node"],
         "resolvePackageJsonExports": true,
         "esModuleInterop": true,
         "isolatedModules": true,
@@ -28,5 +27,6 @@
         "noImplicitAny": false,
         "strictBindCallApply": false,
         "noFallthroughCasesInSwitch": false
-    }
+    },
+    "include": ["src/**/*.ts"]
 }

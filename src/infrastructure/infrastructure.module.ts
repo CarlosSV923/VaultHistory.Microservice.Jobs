@@ -14,8 +14,8 @@ import { PrismaService } from './persistence/prisma/prisma.service';
 import { ConsumerService } from './messaging/kafka/services/consumer.service';
 import { ProducerService } from './messaging/kafka/services/producer.service';
 import { EventPublisherPortToken } from '@application/messaging/event-publisher.port';
-import { UpdateUsersConsumerId } from '@api/consumers/update-outbox.consumer';
-import { UpdateOutboxConsumerId } from '@api/consumers/update-users.consumer';
+import { UpdateUsersConsumerId } from '@api/consumers/update-user.consumer';
+import { UpdateOutboxConsumerId } from '@api/consumers/update-outbox.consumer';
 
 @Module({
     exports: [
