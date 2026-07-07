@@ -26,7 +26,9 @@ export class NotifyUserCron implements OnModuleInit {
             }
 
             const job = new CronJob(cronExpression, async () => {
+                this.logger.verbose(`Ejecutando cron ${cronName}`);
                 await this.notifyUserUseCase.execute(new Date(Date.now()));
+                this.logger.verbose(`Cron ${cronName} ejecutado exitosamente`);
             });
 
             this.schedulerRegistry.addCronJob(cronName, job);

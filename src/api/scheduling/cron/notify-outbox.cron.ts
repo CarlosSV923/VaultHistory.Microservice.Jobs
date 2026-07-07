@@ -26,7 +26,9 @@ export class NotifyOutboxCron implements OnModuleInit {
             }
 
             const job = new CronJob(cronExpression, async () => {
+                this.logger.verbose(`Ejecutando cron ${cronName}`);
                 await this.notifyOutboxUseCase.execute();
+                this.logger.verbose(`Cron ${cronName} ejecutado exitosamente`);
             });
 
             this.schedulerRegistry.addCronJob(cronName, job);

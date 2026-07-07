@@ -14,5 +14,8 @@ module.exports = {
     coverageDirectory: './coverage',
     testEnvironment: 'node',
     roots: ['<rootDir>/src/', '<rootDir>/test/'],
-    moduleNameMapper: pathsToModuleNameMapper(compilerOptions.paths, { prefix: '<rootDir>/' }),
+    moduleNameMapper: {
+        '^(\\.{1,2}/.*)\\.js$': '$1',
+        ...pathsToModuleNameMapper(compilerOptions.paths, { prefix: '<rootDir>/' }),
+    },
 };
