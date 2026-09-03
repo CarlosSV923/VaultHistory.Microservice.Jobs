@@ -1,0 +1,81 @@
+name: vault-history-jobs
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    environment:
+      NODE_ENV: docker
+      PORT: 3000
+      DATABASE_URL: postgresql://vault_history:vault_history@postgres:5432/vault_history?schema=public
+      OUTBOX_QUERY_LIMIT: 30
+      USER_QUERY_LIMIT: 30
+      NOTIFY_OUTBOX_CRON_EXPRESSION: "0 */3 * * * *"
+      NOTIFY_USER_CRON_EXPRESSION: "0 */3 * * * *"
+      PROCESS_OUTBOX_CRON_EXPRESSION: "0 */3 * * * *"
+      KAFKA_BROKER: kafka:9092
+      KAFKA_NOTIFY_OUTBOX_TOPIC: notify-outbox-topic
+      KAFKA_NOTIFY_HISTORY_TOPIC: notify-history-topic
+      KAFKA_UPDATE_USERS_TOPIC: update-users-topic
+      KAFKA_UPDATE_OUTBOX_TOPIC: update-outbox-topic
+      KAFKA_CLIENT_ID: vault-history-microservice-jobs
+      KAFKA_GROUP_ID: vault-history-microservice-jobs-group
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: vault_history
+      POSTGRES_USER: vault_history
+      POSTGRES_PASSWORD: vault_history
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vault_history -d vault_history"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  kafka:
+    image: apache/kafka:4.0.2
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:9094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 20s
+    ports:
+      - "9094:9094"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  kafka_data:
