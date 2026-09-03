@@ -31,6 +31,20 @@
 $ pnpm install
 ```
 
+## Run with Docker
+
+The Docker Compose setup starts the application, PostgreSQL, and a single-node Kafka broker. It generates the Prisma client while building the application image and applies the Prisma migrations before the application starts.
+
+```bash
+docker compose -f docker/docker-compose.yml up --build
+```
+
+The application is available at `http://localhost:3000`, PostgreSQL at `localhost:5432`, and Kafka is available to host clients at `localhost:9094`. Data is stored in the `postgres_data` and `kafka_data` Docker volumes. To stop the environment, run:
+
+```bash
+docker compose -f docker/docker-compose.yml down
+```
+
 ## Compile and run the project
 
 ```bash
