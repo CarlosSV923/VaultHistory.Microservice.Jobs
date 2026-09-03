@@ -57,6 +57,18 @@ $ pnpm run test:e2e
 $ pnpm run test:cov
 ```
 
+## Versioning and releases
+
+This repository uses [Release Please](https://github.com/googleapis/release-please) and starts at version `1.0.0`.
+
+- Every pull request targeting `main` runs linting, tests, and a build through GitHub Actions.
+- Each merge into `main` runs Release Please. It opens or updates a release pull request with the version bump and `CHANGELOG.md` changes.
+- Merging that release pull request creates the Git tag and GitHub release.
+
+Use [Conventional Commits](https://www.conventionalcommits.org/): `fix:` creates a patch release, `feat:` creates a minor release, and a `!` (for example, `feat!:`) creates a major release.
+
+The repository must allow GitHub Actions to create pull requests in **Settings → Actions → General**. If branch protection requires the CI workflow to run on the release pull request too, configure Release Please with a PAT that has repository contents and pull-request write access instead of the default `GITHUB_TOKEN`.
+
 ## Deployment
 
 When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
