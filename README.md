@@ -1,124 +1,409 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# VaultHistory.Microservice.Jobs
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Microservicio desarrollado con NestJS para ejecutar tareas asincronas del sistema VaultHistory.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+Este repositorio documenta principalmente aspectos tecnicos del proyecto: arquitectura, ejecucion local, Docker, PostgreSQL, Prisma, Kafka, tareas programadas y flujo de pruebas.
 
-## Description
+## Stack Tecnico
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+- Node.js 24
+- TypeScript
+- NestJS
+- PostgreSQL 17
+- Prisma 7
+- Apache Kafka 4
+- Docker / Docker Compose
+- Jest
+- Supertest
+- Volta, opcional para fijar versiones
 
-## Project setup
+## Arquitectura
 
-```bash
-$ pnpm install
+El proyecto esta organizado por capas, separando dominio, casos de uso, infraestructura y API.
+
+```txt
+src/
+  api/
+    consumers/
+    scheduling/cron/
+  application/
+    messaging/
+    use-cases/
+  domain/
+    abstractions/
+    outbox/
+    users/
+  infrastructure/
+    messaging/kafka/
+    persistence/prisma/
+    producers/
+    repositories/
+  app.module.ts
+  main.ts
+
+test/
+  api/
+  application/
+  domain/
+  infrastructure/
+  integration/
 ```
 
-## Run with Docker
+### Domain
 
-The Docker Compose setup starts the application, PostgreSQL, and a single-node Kafka broker. It generates the Prisma client while building the application image and applies the Prisma migrations before the application starts.
+Contiene el modelo de dominio y los contratos principales del sistema.
+
+Incluye:
+
+- Entidades de usuarios y mensajes outbox.
+- Abstracciones compartidas `Result` y `Error`.
+- Estados y tipos de notificacion/outbox.
+- Interfaces/puertos de repositorios.
+
+Esta capa no depende de Prisma, Kafka ni otros detalles concretos de infraestructura.
+
+### Application
+
+Contiene los casos de uso y la logica de aplicacion.
+
+Incluye:
+
+- Publicacion de eventos mediante `EventPublisherPort`.
+- Actualizacion de usuarios recibida desde Kafka.
+- Actualizacion de mensajes outbox recibida desde Kafka.
+- Notificacion de nuevos usuarios pendientes.
+- Notificacion de usuarios que cumplen anos.
+- Procesamiento de mensajes outbox pendientes.
+
+### Infrastructure
+
+Contiene las implementaciones concretas de persistencia y mensajeria.
+
+Incluye:
+
+- `PrismaService` y cliente Prisma para PostgreSQL.
+- Repositorios Prisma de usuarios y mensajes outbox.
+- Cliente consumidor y productor de Kafka.
+- Adaptador de publicacion de eventos.
+- Configuracion de topics, consumer group y reintentos de Kafka.
+
+### Api
+
+En este microservicio, la capa API coordina consumidores y tareas programadas; no expone endpoints HTTP de negocio.
+
+Incluye:
+
+- Consumidor de actualizaciones de usuarios.
+- Consumidor de actualizaciones de mensajes outbox.
+- Cron para notificar usuarios con mensajes outbox pendientes.
+- Cron para notificar usuarios que cumplen anos.
+- Cron para procesar mensajes outbox pendientes.
+
+## Flujo De Procesamiento
+
+El servicio se ejecuta como un worker y combina tareas programadas con mensajeria Kafka.
+
+### Tareas programadas
+
+Las tareas se registran durante el inicio de la aplicacion y utilizan las expresiones configuradas en el ambiente:
+
+```txt
+notify-outbox-cron  -> busca usuarios creados y publica notificaciones.
+notify-user-cron    -> busca usuarios cuyo cumpleanos coincide y publica historias.
+process-outbox-cron -> marca como procesados cambios de usuario ya consumidos.
+```
+
+### Kafka
+
+Topics consumidos:
+
+```txt
+KAFKA_UPDATE_USERS_TOPIC  -> actualiza el estado de notificacion de usuarios.
+KAFKA_UPDATE_OUTBOX_TOPIC -> actualiza el estado de mensajes outbox.
+```
+
+Topics publicados:
+
+```txt
+KAFKA_NOTIFY_HISTORY_TOPIC -> solicita la generacion de una historia.
+KAFKA_NOTIFY_OUTBOX_TOPIC  -> notifica el flujo de creacion de un usuario.
+```
+
+El consumer group se configura mediante `KAFKA_GROUP_ID`. Kafka utiliza `KAFKA_BROKER` como broker principal y reintenta las operaciones de consumo y publicacion cuando ocurren errores transitorios.
+
+## Domain-Driven Design
+
+El proyecto aplica conceptos de Domain-Driven Design para mantener el dominio aislado y expresivo.
+
+Conceptos utilizados:
+
+- **Entities**: objetos con identidad propia, como `User` y `Outbox`.
+- **Ports**: contratos definidos desde el dominio para acceder a repositorios y servicios externos.
+- **Adapters**: implementaciones concretas de los puertos en infraestructura.
+- **Result Pattern**: respuesta explicita de exito o error para el flujo esperado.
+- **Error Entity**: representacion uniforme de errores de dominio, persistencia o mensajeria.
+
+## Configuracion Local
+
+La aplicacion carga configuracion desde la carpeta:
+
+```txt
+config/
+```
+
+El archivo cargado depende de `NODE_ENV`:
+
+```txt
+config/.env.local
+config/.env.test
+config/.env.production
+config/.env.docker
+```
+
+El archivo `.env.docker` no se incluye actualmente en el repositorio; Docker Compose proporciona las variables del ambiente `docker` directamente en el servicio `app`. Para ejecucion local se usa `NODE_ENV=local` y se recomienda partir de `config/.env.local.example`.
+
+Ejemplo:
+
+```env
+DATABASE_URL="postgresql://vault_history:vault_history@localhost:5432/vault_history?schema=public"
+
+OUTBOX_QUERY_LIMIT=30
+USER_QUERY_LIMIT=30
+
+NOTIFY_OUTBOX_CRON_EXPRESSION="0 */3 * * * *"
+NOTIFY_USER_CRON_EXPRESSION="0 */3 * * * *"
+PROCESS_OUTBOX_CRON_EXPRESSION="0 */3 * * * *"
+
+KAFKA_BROKER="localhost:9094"
+KAFKA_NOTIFY_OUTBOX_TOPIC="notify-outbox-topic"
+KAFKA_NOTIFY_HISTORY_TOPIC="notify-history-topic"
+KAFKA_UPDATE_USERS_TOPIC="update-users-topic"
+KAFKA_UPDATE_OUTBOX_TOPIC="update-outbox-topic"
+KAFKA_CLIENT_ID="vault-history-microservice-jobs"
+KAFKA_GROUP_ID="vault-history-microservice-jobs-group"
+```
+
+Cuando la aplicacion corre dentro de Docker, debe usar los nombres de servicio de Compose:
+
+```env
+DATABASE_URL="postgresql://vault_history:vault_history@postgres:5432/vault_history?schema=public"
+KAFKA_BROKER="kafka:9092"
+```
+
+La expresion de cron usa el formato de seis campos de la libreria `cron`, incluyendo segundos. Por ejemplo, `0 */3 * * * *` ejecuta una tarea cada tres minutos.
+
+## Instalar Dependencias
+
+Desde la raiz del repositorio:
+
+```bash
+pnpm install
+pnpm prisma:generate
+```
+
+## Ejecutar Con pnpm
+
+Antes de iniciar, asegure que PostgreSQL y Kafka esten disponibles y que exista el archivo de configuracion correspondiente.
+
+Para iniciar en modo local:
+
+```bash
+pnpm run start
+```
+
+Para ejecutar en modo watch:
+
+```bash
+pnpm run start:dev
+```
+
+Para ejecutar en modo debug:
+
+```bash
+pnpm run start:debug
+```
+
+Para compilar el proyecto:
+
+```bash
+pnpm run build
+```
+
+Para ejecutar la version compilada en modo produccion:
+
+```bash
+pnpm run start:prod
+```
+
+El proceso Nest escucha por defecto en `http://localhost:3000`, pero este microservicio no expone endpoints HTTP de negocio. Su funcionamiento principal ocurre mediante los cron jobs y los mensajes Kafka.
+
+## Ejecutar Con Docker
+
+La configuracion Docker se encuentra en:
+
+```txt
+docker/
+  Dockerfile
+  docker-compose.yml
+```
+
+Docker Compose levanta la aplicacion, PostgreSQL y un broker Kafka de un solo nodo:
 
 ```bash
 docker compose -f docker/docker-compose.yml up --build
 ```
 
-The application is available at `http://localhost:3000`, PostgreSQL at `localhost:5432`, and Kafka is available to host clients at `localhost:9094`. Data is stored in the `postgres_data` and `kafka_data` Docker volumes. To stop the environment, run:
+La aplicacion queda disponible en `http://localhost:3000`, PostgreSQL en `localhost:5432` y Kafka para clientes del host en `localhost:9094`.
+
+La imagen de la aplicacion genera el cliente Prisma durante el build y ejecuta `prisma migrate deploy` antes de iniciar el proceso Nest.
+
+Para detener los contenedores:
 
 ```bash
 docker compose -f docker/docker-compose.yml down
 ```
 
-## Compile and run the project
+Para detenerlos y eliminar los datos persistidos de PostgreSQL y Kafka:
 
 ```bash
-# development
-$ pnpm run start
-
-# watch mode
-$ pnpm run start:dev
-
-# production mode
-$ pnpm run start:prod
+docker compose -f docker/docker-compose.yml down -v
 ```
 
-## Run tests
+Los datos se almacenan en los volumenes Docker `postgres_data` y `kafka_data`.
+
+## PostgreSQL Y Prisma
+
+El proyecto usa PostgreSQL como base de datos y Prisma como ORM.
+
+El esquema se encuentra en:
+
+```txt
+src/infrastructure/persistence/prisma/schema.prisma
+```
+
+Modelos principales:
+
+```txt
+User   -> users
+Outbox -> outbox_messages
+```
+
+`User` almacena la informacion necesaria para notificaciones de cumpleanos y el estado de la notificacion. `Outbox` almacena eventos de dominio pendientes, procesados o en proceso.
+
+Comandos utiles:
 
 ```bash
-# unit tests
-$ pnpm run test
-
-# e2e tests
-$ pnpm run test:e2e
-
-# test coverage
-$ pnpm run test:cov
+pnpm run prisma:generate
+pnpm run prisma:migrate-dev
+pnpm run prisma:migrate-deploy
+pnpm run prisma:studio
 ```
 
-## Versioning and releases
+Durante el desarrollo, `prisma:migrate-dev` crea y aplica migraciones. En despliegues, `prisma:migrate-deploy` aplica las migraciones existentes sin crear nuevas.
 
-This repository uses [Release Please](https://github.com/googleapis/release-please) and starts at version `1.0.0`.
+## Flujo Recomendado Para Cambios De Base De Datos
 
-- Every pull request targeting `main` runs linting, tests, and a build through GitHub Actions.
-- Each merge into `main` runs Release Please. It opens or updates a release pull request with the version bump and `CHANGELOG.md` changes.
-- Merging that release pull request creates the Git tag and GitHub release.
+Cada vez que se modifique el modelo persistente:
 
-Use [Conventional Commits](https://www.conventionalcommits.org/): `fix:` creates a patch release, `feat:` creates a minor release, and a `!` (for example, `feat!:`) creates a major release.
+```txt
+1. Actualizar schema.prisma.
+2. Ejecutar prisma:generate.
+3. Crear y aplicar la migracion con prisma:migrate-dev.
+4. Ajustar entidades, puertos, repositorios o mappers, si aplica.
+5. Actualizar o agregar pruebas unitarias.
+6. Actualizar pruebas de integracion cuando cambie el comportamiento persistente.
+7. Probar el proyecto localmente y con Docker.
+```
 
-The repository must allow GitHub Actions to create pull requests in **Settings → Actions → General**. If branch protection requires the CI workflow to run on the release pull request too, configure Release Please with a PAT that has repository contents and pull-request write access instead of the default `GITHUB_TOKEN`.
-
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+Para probar Docker desde cero despues de cambios de persistencia:
 
 ```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
+docker compose -f docker/docker-compose.yml down -v
+docker compose -f docker/docker-compose.yml up --build
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+## Tests
 
-## Resources
+Ejecutar todos los tests unitarios:
 
-Check out a few resources that may come in handy when working with NestJS:
+```bash
+pnpm run test
+```
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+Ejecutar tests en modo watch:
 
-## Support
+```bash
+pnpm run test:watch
+```
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+Ejecutar tests con cobertura:
 
-## Stay in touch
+```bash
+pnpm run test:cov
+```
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+Ejecutar la suite configurada para pruebas end-to-end:
 
-## License
+```bash
+pnpm run test:e2e
+```
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+Las pruebas de integracion existentes verifican el arranque del modulo, el registro de los tres cron jobs, la ejecucion de tareas y la resolucion de consumidores. Las dependencias de PostgreSQL y Kafka se reemplazan por mocks en esa suite para evitar requerir servicios externos.
+
+## Calidad De Codigo
+
+Formatear codigo:
+
+```bash
+pnpm run format
+```
+
+Ejecutar ESLint con autofix:
+
+```bash
+pnpm run lint
+```
+
+## Herramientas Necesarias
+
+- Node.js 24
+- pnpm 11
+- Docker Desktop
+- PostgreSQL, opcional si se usa Docker
+- Apache Kafka, opcional si se usa Docker
+- Volta, opcional pero recomendado para fijar versiones
+
+Habilitar pnpm mediante Corepack:
+
+```bash
+corepack enable
+```
+
+## Manejo De Versiones Con Volta
+
+El proyecto declara las versiones recomendadas en `package.json` mediante Volta:
+
+```json
+{
+    "volta": {
+        "node": "24.16.0",
+        "pnpm": "11.25.0"
+    }
+}
+```
+
+Volta es opcional, pero ayuda a asegurar que los entornos de desarrollo utilicen las mismas versiones.
+
+Instalar Volta en Windows:
+
+```bash
+winget install Volta.Volta
+```
+
+Verificar la instalacion:
+
+```bash
+volta --version
+node --version
+pnpm --version
+```
