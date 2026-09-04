@@ -8,7 +8,7 @@ services:
     environment:
       NODE_ENV: docker
       PORT: 3000
-      DATABASE_URL: postgresql://vault_history:vault_history@postgres:5432/vault_history?schema=public
+      DATABASE_URL: postgresql://admin:admin123@postgres:5432/vault_history?schema=public
       OUTBOX_QUERY_LIMIT: 30
       USER_QUERY_LIMIT: 30
       NOTIFY_OUTBOX_CRON_EXPRESSION: "0 */3 * * * *"
@@ -22,29 +22,10 @@ services:
       KAFKA_CLIENT_ID: vault-history-microservice-jobs
       KAFKA_GROUP_ID: vault-history-microservice-jobs-group
     depends_on:
-      postgres:
-        condition: service_healthy
       kafka:
         condition: service_healthy
     ports:
       - "3000:3000"
-    restart: unless-stopped
-
-  postgres:
-    image: postgres:17-alpine
-    environment:
-      POSTGRES_DB: vault_history
-      POSTGRES_USER: vault_history
-      POSTGRES_PASSWORD: vault_history
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U vault_history -d vault_history"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
 
   kafka:
@@ -77,5 +58,9 @@ services:
     restart: unless-stopped
 
 volumes:
-  postgres_data:
   kafka_data:
+
+networks:
+  default:
+    name: vault-history-user_default
+    external: true

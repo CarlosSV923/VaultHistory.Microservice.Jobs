@@ -36,4 +36,4 @@ COPY --from=build /app/src/infrastructure/persistence/prisma ./src/infrastructur
 
 EXPOSE 3000
 
-CMD ["sh", "-c", "pnpm prisma:migrate-deploy && node dist/main"]
+CMD ["node", "dist/main"]

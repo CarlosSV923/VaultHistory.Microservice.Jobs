@@ -253,9 +253,11 @@ Docker Compose levanta la aplicacion, PostgreSQL y un broker Kafka de un solo no
 docker compose -f docker/docker-compose.yml up --build
 ```
 
+Antes de iniciarlo, levanta `VaultHistory.Microservice.User/docker/docker-compose.yml`; ese proyecto crea PostgreSQL y la red externa `vault-history-user_default` que Jobs utiliza. De esta manera ambos servicios operan sobre la misma base `vault_history` sin competir por su esquema.
+
 La aplicacion queda disponible en `http://localhost:3000`, PostgreSQL en `localhost:5432` y Kafka para clientes del host en `localhost:9094`.
 
-La imagen de la aplicacion genera el cliente Prisma durante el build y ejecuta `prisma migrate deploy` antes de iniciar el proceso Nest.
+La imagen genera el cliente Prisma durante el build. El esquema compartido es propiedad de `VaultHistory.Microservice.User`, por lo que Jobs no ejecuta migraciones al iniciar.
 
 Para detener los contenedores:
 
@@ -294,25 +296,24 @@ Comandos utiles:
 
 ```bash
 pnpm run prisma:generate
-pnpm run prisma:migrate-dev
-pnpm run prisma:migrate-deploy
+pnpm run prisma:validate
 pnpm run prisma:studio
 ```
 
-Durante el desarrollo, `prisma:migrate-dev` crea y aplica migraciones. En despliegues, `prisma:migrate-deploy` aplica las migraciones existentes sin crear nuevas.
+Jobs valida y genera su cliente Prisma, pero no crea ni aplica migraciones. `VaultHistory.Microservice.User` es el único proyecto autorizado a evolucionar las tablas compartidas `users` y `outbox_messages` mediante EF Core.
 
 ## Flujo Recomendado Para Cambios De Base De Datos
 
-Cada vez que se modifique el modelo persistente:
+Cada vez que se modifique el modelo persistente compartido:
 
 ```txt
-1. Actualizar schema.prisma.
-2. Ejecutar prisma:generate.
-3. Crear y aplicar la migracion con prisma:migrate-dev.
+1. Actualizar el modelo y la migración de `VaultHistory.Microservice.User`.
+2. Reflejar el contrato en `schema.prisma`.
+3. Ejecutar `pnpm prisma:generate` y `pnpm prisma:validate` en Jobs.
 4. Ajustar entidades, puertos, repositorios o mappers, si aplica.
 5. Actualizar o agregar pruebas unitarias.
-6. Actualizar pruebas de integracion cuando cambie el comportamiento persistente.
-7. Probar el proyecto localmente y con Docker.
+6. Actualizar pruebas de integración cuando cambie el comportamiento persistente.
+7. Probar ambos proyectos contra la misma base de datos.
 ```
 
 Para probar Docker desde cero despues de cambios de persistencia:
