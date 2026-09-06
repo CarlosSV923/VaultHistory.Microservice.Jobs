@@ -129,6 +129,18 @@ KAFKA_NOTIFY_HISTORY_TOPIC -> solicita la generacion de una historia.
 KAFKA_NOTIFY_OUTBOX_TOPIC  -> notifica el flujo de creacion de un usuario.
 ```
 
+Los resultados recibidos por los topics de actualizacion procesan una sola entidad por mensaje. El contrato usa `id` como identificador escalar; `ids` no es válido en estos consumers:
+
+```json
+{ "id": "user-id", "data": { "notificationStatus": "NOTIFIED", "notificationDate": "2026-09-05T12:31:00.000Z" } }
+```
+
+```json
+{ "id": "outbox-id", "data": { "status": "PROCESSED", "error": null } }
+```
+
+Internamente, los repositorios conservan operaciones por lote y reciben un arreglo de un elemento.
+
 El consumer group se configura mediante `KAFKA_GROUP_ID`. Kafka utiliza `KAFKA_BROKER` como broker principal y reintenta las operaciones de consumo y publicacion cuando ocurren errores transitorios.
 
 ## Domain-Driven Design

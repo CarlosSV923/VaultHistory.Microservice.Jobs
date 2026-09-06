@@ -4,7 +4,7 @@ import { UserRepositoryPortToken } from '@domain/users/ports/user-repository.por
 import type { UserRepositoryPort } from '@domain/users/ports/user-repository.port';
 
 export class UpdateUsersUseCasePayload {
-    ids!: string[];
+    id!: string;
     data!: { notificationStatus: string; notificationDate: Date | null };
 }
 
@@ -16,6 +16,6 @@ export class UpdateUsersUseCase {
     ) {}
 
     async execute(payload: UpdateUsersUseCasePayload): Promise<ResultEntity<void>> {
-        return this.userRepository.updateNotificationStatusByIds(payload.ids, payload.data);
+        return this.userRepository.updateNotificationStatusByIds([payload.id], payload.data);
     }
 }
