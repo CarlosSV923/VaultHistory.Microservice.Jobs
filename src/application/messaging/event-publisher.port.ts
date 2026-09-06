@@ -13,7 +13,9 @@ export class NotifyHistoryMessage extends NotifyMessage {
 }
 
 export class NotifyOutboxMessage extends NotifyMessage {
+    outboxId!: string;
     type!: string;
+    occurredOn!: Date;
 }
 
 export interface EventPublisherPort {

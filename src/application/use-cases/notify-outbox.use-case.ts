@@ -21,7 +21,7 @@ export class NotifyOutboxUseCase {
 
     async execute(): Promise<ResultEntity<void>> {
         const outboxResult = await this.outboxRepository.getByStatusAndType(OutboxStatus.PENDING, [
-            OutboxType.CREATE_USER,
+            OutboxType.SIGNED_IN_USER,
         ]);
 
         if (outboxResult.isFailure) {
@@ -53,14 +53,26 @@ export class NotifyOutboxUseCase {
             return ResultEntity.failure(userResult.error);
         }
 
-        const usersParse: NotifyOutboxMessage[] = userResult.Value.map((user) => {
-            return {
-                email: user.email,
-                fullname: user.fullname,
-                type: OutboxType.CREATE_USER,
-                userId: user.id,
-                birthDate: user.birthDate,
-            };
+        const usersById = new Map(userResult.Value.map((user) => [user.id, user]));
+        const usersParse: NotifyOutboxMessage[] = outboxResult.Value.flatMap((outbox) => {
+            const userId = outbox.payload?.userId;
+            const user = userId ? usersById.get(userId) : undefined;
+
+            if (!user) {
+                return [];
+            }
+
+            return [
+                {
+                    outboxId: outbox.id,
+                    email: user.email,
+                    fullname: user.fullname,
+                    type: outbox.type,
+                    userId: user.id,
+                    birthDate: user.birthDate,
+                    occurredOn: outbox.occurredOn,
+                },
+            ];
         });
 
         const publishResult = await this.eventPublisher.notifyOutboxToUser(usersParse);

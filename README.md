@@ -71,7 +71,7 @@ Incluye:
 - Publicacion de eventos mediante `EventPublisherPort`.
 - Actualizacion de usuarios recibida desde Kafka.
 - Actualizacion de mensajes outbox recibida desde Kafka.
-- Notificacion de nuevos usuarios pendientes.
+- Notificacion de inicios de sesión pendientes.
 - Notificacion de usuarios que cumplen anos.
 - Procesamiento de mensajes outbox pendientes.
 
@@ -108,7 +108,7 @@ El servicio se ejecuta como un worker y combina tareas programadas con mensajeri
 Las tareas se registran durante el inicio de la aplicacion y utilizan las expresiones configuradas en el ambiente:
 
 ```txt
-notify-outbox-cron  -> busca usuarios creados y publica notificaciones.
+notify-outbox-cron  -> busca inicios de sesión y publica notificaciones.
 notify-user-cron    -> busca usuarios cuyo cumpleanos coincide y publica historias.
 process-outbox-cron -> marca como procesados cambios de usuario ya consumidos.
 ```
@@ -126,10 +126,43 @@ Topics publicados:
 
 ```txt
 KAFKA_NOTIFY_HISTORY_TOPIC -> solicita la generacion de una historia.
-KAFKA_NOTIFY_OUTBOX_TOPIC  -> notifica el flujo de creacion de un usuario.
+KAFKA_NOTIFY_OUTBOX_TOPIC  -> notifica un inicio de sesión de usuario.
 ```
 
-Los resultados recibidos por los topics de actualizacion procesan una sola entidad por mensaje. El contrato usa `id` como identificador escalar; `ids` no es válido en estos consumers:
+### Contratos Kafka
+
+Los mensajes se publican como JSON UTF-8 en `camelCase`. Las fechas se serializan en formato ISO 8601 UTC. Los fixtures de referencia se encuentran en `test/fixtures/kafka`.
+
+`notify-history-topic` solicita una historia para un usuario elegible:
+
+```json
+{
+  "userId": "user-id",
+  "email": "person@example.com",
+  "fullname": "Person Name",
+  "birthDate": "2000-01-01T00:00:00.000Z",
+  "theme": null,
+  "character": null
+}
+```
+
+`notify-outbox-topic` conserva la correlación con el registro outbox que debe actualizarse después del envío:
+
+```json
+{
+  "outboxId": "outbox-id",
+  "userId": "user-id",
+  "email": "person@example.com",
+  "fullname": "Person Name",
+  "birthDate": "2000-01-01T00:00:00.000Z",
+  "type": "UserSignedInEvent",
+  "occurredOn": "2026-09-05T12:30:00.000Z"
+}
+```
+
+`UserSignedInEvent` es el tipo de outbox que activa este flujo de notificación. `CreateUserEvent` se procesa por el flujo general de outbox y no se publica en `notify-outbox-topic`.
+
+Los resultados consumidos por Jobs actualizan una sola entidad y usan `id` como identificador escalar:
 
 ```json
 { "id": "user-id", "data": { "notificationStatus": "NOTIFIED", "notificationDate": "2026-09-05T12:31:00.000Z" } }
@@ -138,6 +171,8 @@ Los resultados recibidos por los topics de actualizacion procesan una sola entid
 ```json
 { "id": "outbox-id", "data": { "status": "PROCESSED", "error": null } }
 ```
+
+Los consumers no aceptan el formato heredado `ids`. Antes de desplegar productores de Notification, se deben drenar o transformar los mensajes de resultado antiguos; un mensaje de outbox sin `outboxId` no puede actualizarse de forma segura.
 
 Internamente, los repositorios conservan operaciones por lote y reciben un arreglo de un elemento.
 
