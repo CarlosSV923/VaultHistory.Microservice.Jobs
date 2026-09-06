@@ -129,7 +129,40 @@ KAFKA_NOTIFY_HISTORY_TOPIC -> solicita la generacion de una historia.
 KAFKA_NOTIFY_OUTBOX_TOPIC  -> notifica el flujo de creacion de un usuario.
 ```
 
-Los resultados recibidos por los topics de actualizacion procesan una sola entidad por mensaje. El contrato usa `id` como identificador escalar; `ids` no es válido en estos consumers:
+### Contratos Kafka
+
+Los mensajes se publican como JSON UTF-8 en `camelCase`. Las fechas se serializan en formato ISO 8601 UTC. Los fixtures de referencia se encuentran en `test/fixtures/kafka`.
+
+`notify-history-topic` solicita una historia para un usuario elegible:
+
+```json
+{
+  "userId": "user-id",
+  "email": "person@example.com",
+  "fullname": "Person Name",
+  "birthDate": "2000-01-01T00:00:00.000Z",
+  "theme": null,
+  "character": null
+}
+```
+
+`notify-outbox-topic` conserva la correlación con el registro outbox que debe actualizarse después del envío:
+
+```json
+{
+  "outboxId": "outbox-id",
+  "userId": "user-id",
+  "email": "person@example.com",
+  "fullname": "Person Name",
+  "birthDate": "2000-01-01T00:00:00.000Z",
+  "type": "CreateUserEvent",
+  "occurredOn": "2026-09-05T12:30:00.000Z"
+}
+```
+
+`UserSignedInEvent` está declarado como tipo de outbox para la futura integración con User. Su publicación y enrutamiento se implementarán con las historias de inicio de sesión; la forma del mensaje será la misma que `notify-outbox-topic`.
+
+Los resultados consumidos por Jobs actualizan una sola entidad y usan `id` como identificador escalar:
 
 ```json
 { "id": "user-id", "data": { "notificationStatus": "NOTIFIED", "notificationDate": "2026-09-05T12:31:00.000Z" } }
@@ -138,6 +171,8 @@ Los resultados recibidos por los topics de actualizacion procesan una sola entid
 ```json
 { "id": "outbox-id", "data": { "status": "PROCESSED", "error": null } }
 ```
+
+Los consumers no aceptan el formato heredado `ids`. Antes de desplegar productores de Notification, se deben drenar o transformar los mensajes de resultado antiguos; un mensaje de outbox sin `outboxId` no puede actualizarse de forma segura.
 
 Internamente, los repositorios conservan operaciones por lote y reciben un arreglo de un elemento.
 
