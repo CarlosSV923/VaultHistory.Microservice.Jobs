@@ -20,6 +20,7 @@ export class ProcessOutboxUseCase {
             OutboxType.EMAIL_CHANGED_USER,
             OutboxType.FULLNAME_CHANGED_USER,
             OutboxType.PASSWORD_CHANGED_USER,
+            OutboxType.CREATE_USER,
         ]);
 
         if (outboxResult.isFailure) {

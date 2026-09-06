@@ -21,7 +21,7 @@ export class NotifyOutboxUseCase {
 
     async execute(): Promise<ResultEntity<void>> {
         const outboxResult = await this.outboxRepository.getByStatusAndType(OutboxStatus.PENDING, [
-            OutboxType.CREATE_USER,
+            OutboxType.SIGNED_IN_USER,
         ]);
 
         if (outboxResult.isFailure) {

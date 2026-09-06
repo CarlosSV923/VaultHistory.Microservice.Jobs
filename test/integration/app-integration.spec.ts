@@ -78,7 +78,7 @@ describe('App Integration', () => {
         prismaServiceMock.outbox.findMany.mockResolvedValueOnce([
             {
                 id: 'outbox-e2e-1',
-                type: 'CREATE_USER',
+                type: 'UserSignedInEvent',
                 payload: '{"userId":"user-e2e-1"}',
                 occurredOn: new Date(),
                 status: 'PENDING',

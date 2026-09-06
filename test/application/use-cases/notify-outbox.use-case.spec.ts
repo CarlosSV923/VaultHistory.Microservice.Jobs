@@ -26,17 +26,17 @@ describe('NotifyOutboxUseCase', () => {
         useCase = new NotifyOutboxUseCase(outboxRepository, eventPublisher, userRepository);
     });
 
-    it('should publish notifications for pending outbox users', async () => {
+    it('should publish notifications for pending signed-in users', async () => {
         const outboxes = [
             {
                 id: 'outbox-1',
-                type: OutboxType.CREATE_USER,
+                type: OutboxType.SIGNED_IN_USER,
                 payload: { userId: 'user-1' },
                 occurredOn: new Date('2026-09-05T12:30:00.000Z'),
             },
             {
                 id: 'outbox-2',
-                type: OutboxType.CREATE_USER,
+                type: OutboxType.SIGNED_IN_USER,
                 payload: { userId: 'user-2' },
                 occurredOn: new Date('2026-09-05T12:31:00.000Z'),
             },
@@ -64,7 +64,7 @@ describe('NotifyOutboxUseCase', () => {
         const result = await useCase.execute();
 
         expect(outboxRepository.getByStatusAndType).toHaveBeenCalledWith(OutboxStatus.PENDING, [
-            OutboxType.CREATE_USER,
+            OutboxType.SIGNED_IN_USER,
         ]);
         expect(outboxRepository.updateStatusByIds).toHaveBeenCalledWith(['outbox-1', 'outbox-2'], {
             status: OutboxStatus.IN_PROCESS,
@@ -76,7 +76,7 @@ describe('NotifyOutboxUseCase', () => {
                 outboxId: 'outbox-1',
                 email: 'one@test.com',
                 fullname: 'User One',
-                type: OutboxType.CREATE_USER,
+                type: OutboxType.SIGNED_IN_USER,
                 userId: 'user-1',
                 birthDate: users[1].birthDate,
                 occurredOn: outboxes[0].occurredOn,
@@ -85,7 +85,7 @@ describe('NotifyOutboxUseCase', () => {
                 outboxId: 'outbox-2',
                 email: 'two@test.com',
                 fullname: 'User Two',
-                type: OutboxType.CREATE_USER,
+                type: OutboxType.SIGNED_IN_USER,
                 userId: 'user-2',
                 birthDate: users[0].birthDate,
                 occurredOn: outboxes[1].occurredOn,

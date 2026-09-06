@@ -35,7 +35,7 @@ describe('Kafka contracts', () => {
         expect(message).toMatchObject({
             outboxId: 'outbox-1',
             userId: 'user-1',
-            type: OutboxType.CREATE_USER,
+            type: OutboxType.SIGNED_IN_USER,
         });
         expectIsoDate(message.birthDate);
         expectIsoDate(message.occurredOn);

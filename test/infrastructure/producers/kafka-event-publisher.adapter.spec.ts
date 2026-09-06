@@ -62,7 +62,7 @@ describe('KafkaEventPublisherAdapter', () => {
                     email: 'three@test.com',
                     fullname: 'User Three',
                     birthDate: new Date('2000-01-01'),
-                    type: 'CreateUserEvent',
+                    type: 'UserSignedInEvent',
                     occurredOn: new Date('2026-09-05T12:30:00.000Z'),
                 },
             ];

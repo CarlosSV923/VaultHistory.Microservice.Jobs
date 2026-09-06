@@ -71,7 +71,7 @@ Incluye:
 - Publicacion de eventos mediante `EventPublisherPort`.
 - Actualizacion de usuarios recibida desde Kafka.
 - Actualizacion de mensajes outbox recibida desde Kafka.
-- Notificacion de nuevos usuarios pendientes.
+- Notificacion de inicios de sesión pendientes.
 - Notificacion de usuarios que cumplen anos.
 - Procesamiento de mensajes outbox pendientes.
 
@@ -108,7 +108,7 @@ El servicio se ejecuta como un worker y combina tareas programadas con mensajeri
 Las tareas se registran durante el inicio de la aplicacion y utilizan las expresiones configuradas en el ambiente:
 
 ```txt
-notify-outbox-cron  -> busca usuarios creados y publica notificaciones.
+notify-outbox-cron  -> busca inicios de sesión y publica notificaciones.
 notify-user-cron    -> busca usuarios cuyo cumpleanos coincide y publica historias.
 process-outbox-cron -> marca como procesados cambios de usuario ya consumidos.
 ```
@@ -126,7 +126,7 @@ Topics publicados:
 
 ```txt
 KAFKA_NOTIFY_HISTORY_TOPIC -> solicita la generacion de una historia.
-KAFKA_NOTIFY_OUTBOX_TOPIC  -> notifica el flujo de creacion de un usuario.
+KAFKA_NOTIFY_OUTBOX_TOPIC  -> notifica un inicio de sesión de usuario.
 ```
 
 ### Contratos Kafka
@@ -155,12 +155,12 @@ Los mensajes se publican como JSON UTF-8 en `camelCase`. Las fechas se serializa
   "email": "person@example.com",
   "fullname": "Person Name",
   "birthDate": "2000-01-01T00:00:00.000Z",
-  "type": "CreateUserEvent",
+  "type": "UserSignedInEvent",
   "occurredOn": "2026-09-05T12:30:00.000Z"
 }
 ```
 
-`UserSignedInEvent` está declarado como tipo de outbox para la futura integración con User. Su publicación y enrutamiento se implementarán con las historias de inicio de sesión; la forma del mensaje será la misma que `notify-outbox-topic`.
+`UserSignedInEvent` es el tipo de outbox que activa este flujo de notificación. `CreateUserEvent` se procesa por el flujo general de outbox y no se publica en `notify-outbox-topic`.
 
 Los resultados consumidos por Jobs actualizan una sola entidad y usan `id` como identificador escalar:
 
