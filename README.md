@@ -226,10 +226,9 @@ El archivo cargado depende de `NODE_ENV`:
 config/.env.local
 config/.env.test
 config/.env.production
-config/.env.docker
 ```
 
-El archivo `.env.docker` no se incluye actualmente en el repositorio; Docker Compose proporciona las variables del ambiente `docker` directamente en el servicio `app`. Para ejecucion local se usa `NODE_ENV=local` y se recomienda partir de `config/.env.local.example`.
+Para ejecucion local se usa `NODE_ENV=local` y se recomienda partir de `config/.env.local.example`. El entorno Docker proporciona sus variables directamente desde el Compose de `Vault.History.System`.
 
 Ejemplo:
 
@@ -308,39 +307,13 @@ El proceso Nest escucha por defecto en `http://localhost:3000`, pero este micros
 
 ## Ejecutar Con Docker
 
-La configuracion Docker se encuentra en:
-
-```txt
-docker/
-  Dockerfile
-  docker-compose.yml
-```
-
-Docker Compose levanta la aplicacion, PostgreSQL y un broker Kafka de un solo nodo:
+La construcción de Jobs, PostgreSQL y Kafka se administra desde [Vault.History.System](https://github.com/CarlosSV923/Vault.History.System). Ese repositorio contiene el Dockerfile y el Compose únicos del sistema:
 
 ```bash
-docker compose -f docker/docker-compose.yml up --build
+docker compose up --build -d
 ```
 
-Antes de iniciarlo, levanta `VaultHistory.Microservice.User/docker/docker-compose.yml`; ese proyecto crea PostgreSQL y la red externa `vault-history-user_default` que Jobs utiliza. De esta manera ambos servicios operan sobre la misma base `vault_history` sin competir por su esquema.
-
-La aplicacion queda disponible en `http://localhost:3000`, PostgreSQL en `localhost:5432` y Kafka para clientes del host en `localhost:9094`.
-
-La imagen genera el cliente Prisma durante el build. El esquema compartido es propiedad de `VaultHistory.Microservice.User`, por lo que Jobs no ejecuta migraciones al iniciar.
-
-Para detener los contenedores:
-
-```bash
-docker compose -f docker/docker-compose.yml down
-```
-
-Para detenerlos y eliminar los datos persistidos de PostgreSQL y Kafka:
-
-```bash
-docker compose -f docker/docker-compose.yml down -v
-```
-
-Los datos se almacenan en los volumenes Docker `postgres_data` y `kafka_data`.
+Jobs se ejecuta como worker sin publicar un puerto HTTP. El esquema compartido sigue siendo propiedad de User; Jobs genera el cliente Prisma durante el build y no ejecuta migraciones.
 
 ## PostgreSQL Y Prisma
 
@@ -385,11 +358,11 @@ Cada vez que se modifique el modelo persistente compartido:
 7. Probar ambos proyectos contra la misma base de datos.
 ```
 
-Para probar Docker desde cero despues de cambios de persistencia:
+Para probar Docker desde cero después de cambios de persistencia, desde `Vault.History.System`:
 
 ```bash
-docker compose -f docker/docker-compose.yml down -v
-docker compose -f docker/docker-compose.yml up --build
+docker compose down --volumes
+docker compose up --build -d
 ```
 
 ## Tests
