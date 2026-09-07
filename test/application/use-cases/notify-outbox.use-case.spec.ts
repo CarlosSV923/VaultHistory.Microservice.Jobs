@@ -189,6 +189,43 @@ describe('NotifyOutboxUseCase', () => {
         expect(result.isSuccess).toBe(true);
     });
 
+    it('should mark reserved outbox entries as error when publishing fails', async () => {
+        const outbox = {
+            id: 'outbox-1',
+            type: OutboxType.SIGNED_IN_USER,
+            payload: { userId: 'user-1' },
+            occurredOn: new Date('2026-09-05T12:30:00.000Z'),
+        };
+        const publishError = ErrorEntity.MessageError('Kafka unavailable');
+        outboxRepository.getByStatusAndType.mockResolvedValue(ResultEntity.success([outbox]));
+        userRepository.getByIds.mockResolvedValue(
+            ResultEntity.success([
+                {
+                    id: 'user-1',
+                    email: 'one@test.com',
+                    fullname: 'User One',
+                    birthDate: null,
+                    isActive: true,
+                },
+            ]),
+        );
+        outboxRepository.updateStatusByIds.mockResolvedValue(ResultEntity.success());
+        eventPublisher.notifyOutboxToUser.mockResolvedValue(ResultEntity.failure(publishError));
+
+        const result = await useCase.execute();
+
+        expect(outboxRepository.updateStatusByIds).toHaveBeenNthCalledWith(1, ['outbox-1'], {
+            status: OutboxStatus.IN_PROCESS,
+            error: null,
+        });
+        expect(outboxRepository.updateStatusByIds).toHaveBeenNthCalledWith(2, ['outbox-1'], {
+            status: OutboxStatus.ERROR,
+            error: 'NOTIFICATION_PUBLISH_FAILED',
+        });
+        expect(result.isFailure).toBe(true);
+        expect(result.error).toBe(publishError);
+    });
+
     it('should return failure when outbox lookup fails', async () => {
         const error = ErrorEntity.DatabaseError('db error');
         outboxRepository.getByStatusAndType.mockResolvedValue(ResultEntity.failure(error));

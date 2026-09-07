@@ -92,50 +92,48 @@ export class PrismaUserRepository implements UserRepositoryPort {
     async getToNotifyByBirthday(birthdate: Date): Promise<ResultEntity<UserEntity[]>> {
         try {
             const take = Number(this.configService.get<number>('USER_QUERY_LIMIT'));
-
-            const start = new Date(birthdate);
-            start.setHours(0, 0, 0, 0);
-
-            const end = new Date(start);
-            end.setDate(end.getDate() + 1);
-
-            const startOfYear = new Date(birthdate);
-            startOfYear.setMonth(0, 1);
-            startOfYear.setHours(0, 0, 0, 0);
+            const startOfYear = new Date(Date.UTC(birthdate.getUTCFullYear(), 0, 1));
 
             const users = await this.prismaService.user.findMany({
                 where: {
                     isActive: true,
                     notification: true,
-                    birthDate: {
-                        gte: start,
-                        lt: end,
-                    },
-                    notificationStatus: {
-                        not: NotificationStatus.IN_PROCESS,
-                    },
-                    OR: [
+                    AND: [
                         {
-                            notificationDate: null,
+                            OR: [
+                                { notificationStatus: null },
+                                {
+                                    notificationStatus: {
+                                        notIn: [
+                                            NotificationStatus.IN_PROCESS,
+                                            NotificationStatus.ERROR,
+                                        ],
+                                    },
+                                },
+                            ],
                         },
                         {
-                            notificationDate: {
-                                lt: startOfYear,
-                            },
+                            OR: [
+                                { notificationDate: null },
+                                { notificationDate: { lt: startOfYear } },
+                            ],
                         },
                     ],
                 },
-                take,
             });
 
-            if (users.length <= 0) {
+            const usersMatchingBirthday = users
+                .filter((user) => this.matchesBirthdayInUtc(user.birthDate, birthdate))
+                .slice(0, take);
+
+            if (usersMatchingBirthday.length <= 0) {
                 const message = `No se encontraron usuarios por fecha de nacimiento`;
                 this.logger.warn(message);
                 return ResultEntity.failure(ErrorEntity.NotFound(message));
             }
 
             return ResultEntity.success(
-                users.map((user) =>
+                usersMatchingBirthday.map((user) =>
                     UserEntity.restore({
                         id: user.id,
                         fullname: user.fullname,
@@ -156,5 +154,26 @@ export class PrismaUserRepository implements UserRepositoryPort {
             const baseMessage = `Error obteniendo usurios por fecha de nacimiento`;
             return RepositoryUtils.processError(this.logger, baseMessage, error);
         }
+    }
+
+    private matchesBirthdayInUtc(birthDate: Date | null, targetDate: Date): boolean {
+        if (!birthDate) {
+            return false;
+        }
+
+        const targetYear = targetDate.getUTCFullYear();
+        const targetMonth = targetDate.getUTCMonth();
+        const targetDay = targetDate.getUTCDate();
+        const isLeapDay = birthDate.getUTCMonth() === 1 && birthDate.getUTCDate() === 29;
+
+        if (isLeapDay && !this.isLeapYear(targetYear)) {
+            return false;
+        }
+
+        return birthDate.getUTCMonth() === targetMonth && birthDate.getUTCDate() === targetDay;
+    }
+
+    private isLeapYear(year: number): boolean {
+        return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
     }
 }

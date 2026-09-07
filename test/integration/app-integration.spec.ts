@@ -137,7 +137,7 @@ describe('App Integration', () => {
         const userResult = await usersConsumer.handle(
             {
                 id: 'user-1',
-                data: { notificationStatus: 'SUCCESS', notificationDate: new Date() },
+                data: { notificationStatus: 'NOTIFIED', notificationDate: new Date() },
             },
             { topic: 'users-topic', partition: 0, offset: '0', timestamp: '0', headers: {} },
         );

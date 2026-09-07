@@ -87,29 +87,26 @@ export class ConsumerService implements OnModuleInit, OnModuleDestroy {
                     const handlers = this.consumersTopicMap.get(topic) || [];
                     const parsedMessage = this.parseMessage(message.value?.toString() ?? '');
 
-                    if (typeof parsedMessage !== 'object') {
-                        this.logger.error(
-                            `No se puede procesar mensaje para el topic: ${topic} - Message: ${JSON.stringify(parsedMessage)} - No cumple la estructura definida`,
+                    if (!parsedMessage || typeof parsedMessage !== 'object' || Array.isArray(parsedMessage)) {
+                        throw new Error(
+                            `No se puede procesar mensaje para el topic: ${topic} - No cumple la estructura definida`,
                         );
-                        return;
                     }
 
                     await Promise.all(
                         handlers.map(async (handler) => {
-                            try {
-                                await handler.handle(parsedMessage, {
-                                    topic,
-                                    partition,
-                                    offset: message.offset,
-                                    timestamp: message.timestamp,
-                                    headers: message.headers,
-                                    message,
-                                });
-                            } catch (error) {
-                                const isError = error instanceof Error;
-                                this.logger.error(
-                                    `Error al procesar mensaje en el topic ${topic} - Message: ${JSON.stringify(parsedMessage)}${isError ? ' - Error: ' + error.message : ''}`,
-                                    isError ? error.stack : '',
+                            const result = await handler.handle(parsedMessage, {
+                                topic,
+                                partition,
+                                offset: message.offset,
+                                timestamp: message.timestamp,
+                                headers: message.headers,
+                                message,
+                            });
+
+                            if (result.isFailure) {
+                                throw new Error(
+                                    `El handler no pudo procesar ${topic}: ${result.error.code} - ${result.error.message}`,
                                 );
                             }
                         }),

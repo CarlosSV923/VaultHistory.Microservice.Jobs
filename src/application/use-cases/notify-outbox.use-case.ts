@@ -134,6 +134,15 @@ export class NotifyOutboxUseCase {
         const publishResult = await this.eventPublisher.notifyOutboxToUser(messages);
 
         if (publishResult.isFailure) {
+            const recoveryResult = await this.markAsError(
+                messages.map((message) => message.outboxId),
+                'NOTIFICATION_PUBLISH_FAILED',
+            );
+
+            if (recoveryResult.isFailure) {
+                return recoveryResult;
+            }
+
             return ResultEntity.failure(publishResult.error);
         }
 

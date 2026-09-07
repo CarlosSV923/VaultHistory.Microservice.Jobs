@@ -50,6 +50,15 @@ export class NotifyUserUseCase {
         const publishResult = await this.eventPublisher.notifyHistoryToUser(usersParse);
 
         if (publishResult.isFailure) {
+            const recoveryResult = await this.userRepository.updateNotificationStatusByIds(userIds, {
+                notificationStatus: NotificationStatus.ERROR,
+                notificationDate: null,
+            });
+
+            if (recoveryResult.isFailure) {
+                return recoveryResult;
+            }
+
             return ResultEntity.failure(publishResult.error);
         }
 

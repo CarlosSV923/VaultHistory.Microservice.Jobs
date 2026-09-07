@@ -35,8 +35,14 @@ describe('UpdateOutboxConsumer', () => {
         expect(result).toBe(expectedResult);
     });
 
-    it.each([{ ids: ['outbox-1'] }, { id: '' }, { id: ['outbox-1'] }])(
-        'should reject a message without a scalar id',
+    it.each([
+        { ids: ['outbox-1'] },
+        { id: '' },
+        { id: ['outbox-1'] },
+        { id: 'outbox-1', data: { status: 'PROCESSED', error: 'unexpected' } },
+        { id: 'outbox-1', data: { status: 'ERROR', error: null } },
+    ])(
+        'should reject a message without a valid scalar result',
         async (message) => {
             const metadata: ConsumerMetadata = {
                 topic: 'outbox-topic',
