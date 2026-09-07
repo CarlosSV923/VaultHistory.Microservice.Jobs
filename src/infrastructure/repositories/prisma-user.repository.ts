@@ -22,7 +22,6 @@ export class PrismaUserRepository implements UserRepositoryPort {
         try {
             const users = await this.prismaService.user.findMany({
                 where: {
-                    isActive: true,
                     id: {
                         in: ids,
                     },

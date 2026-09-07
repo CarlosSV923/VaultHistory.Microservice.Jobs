@@ -6,8 +6,10 @@ import { UserRepositoryPortToken } from '@domain/users/ports/user-repository.por
 import type { UserRepositoryPort } from '@domain/users/ports/user-repository.port';
 import { EventPublisherPortToken } from '../messaging/event-publisher.port';
 import { ResultEntity } from '@domain/abstractions/result.entity';
+import { ErrorCodes } from '@domain/abstractions/error.entity';
 import { OutboxStatus } from '@domain/outbox/outbox-status.enum';
 import { OutboxType } from '@domain/outbox/outbox-type.enum';
+import type { OutboxEntity } from '@domain/outbox/outbox.entity';
 @Injectable()
 export class NotifyOutboxUseCase {
     constructor(
@@ -28,37 +30,57 @@ export class NotifyOutboxUseCase {
             return ResultEntity.failure(outboxResult.error);
         }
 
-        const outboxIds: string[] = [];
-        const userIds: string[] = [];
+        const outboxesWithUserIds = outboxResult.Value.map((outbox) => ({
+            outbox,
+            userId: this.getUserId(outbox),
+        }));
+        const malformedOutboxes = outboxesWithUserIds.filter(({ userId }) => userId === null);
+        const malformedUpdateResult = await this.markAsError(
+            malformedOutboxes.map(({ outbox }) => outbox.id),
+            'USER_ID_MISSING',
+        );
 
-        outboxResult.Value.forEach((outbox) => {
-            outboxIds.push(outbox.id);
-            if (outbox.payload?.userId) {
-                userIds.push(outbox.payload.userId);
-            }
-        });
-
-        const outboxUpdateResult = await this.outboxRepository.updateStatusByIds(outboxIds, {
-            status: OutboxStatus.IN_PROCESS,
-            error: null,
-        });
-
-        if (outboxUpdateResult.isFailure) {
-            return ResultEntity.failure(outboxUpdateResult.error);
+        if (malformedUpdateResult.isFailure) {
+            return malformedUpdateResult;
         }
+
+        const candidateOutboxes = outboxesWithUserIds.filter(
+            (candidate): candidate is { outbox: OutboxEntity; userId: string } =>
+                candidate.userId !== null,
+        );
+
+        if (candidateOutboxes.length === 0) {
+            return ResultEntity.success();
+        }
+
+        const userIds = [...new Set(candidateOutboxes.map(({ userId }) => userId))];
 
         const userResult = await this.userRepository.getByIds(userIds);
 
         if (userResult.isFailure) {
+            if (userResult.error.code === ErrorCodes.NotFound) {
+                return this.markAsError(
+                    candidateOutboxes.map(({ outbox }) => outbox.id),
+                    'USER_NOT_FOUND',
+                );
+            }
+
             return ResultEntity.failure(userResult.error);
         }
 
         const usersById = new Map(userResult.Value.map((user) => [user.id, user]));
-        const usersParse: NotifyOutboxMessage[] = outboxResult.Value.flatMap((outbox) => {
-            const userId = outbox.payload?.userId;
-            const user = userId ? usersById.get(userId) : undefined;
+        const missingUserOutboxIds: string[] = [];
+        const inactiveUserOutboxIds: string[] = [];
+        const messages: NotifyOutboxMessage[] = candidateOutboxes.flatMap(({ outbox, userId }) => {
+            const user = usersById.get(userId);
 
             if (!user) {
+                missingUserOutboxIds.push(outbox.id);
+                return [];
+            }
+
+            if (!user.isActive) {
+                inactiveUserOutboxIds.push(outbox.id);
                 return [];
             }
 
@@ -75,12 +97,68 @@ export class NotifyOutboxUseCase {
             ];
         });
 
-        const publishResult = await this.eventPublisher.notifyOutboxToUser(usersParse);
+        const missingUserUpdateResult = await this.markAsError(
+            missingUserOutboxIds,
+            'USER_NOT_FOUND',
+        );
+
+        if (missingUserUpdateResult.isFailure) {
+            return missingUserUpdateResult;
+        }
+
+        const inactiveUserUpdateResult = await this.markAsError(
+            inactiveUserOutboxIds,
+            'USER_INACTIVE',
+        );
+
+        if (inactiveUserUpdateResult.isFailure) {
+            return inactiveUserUpdateResult;
+        }
+
+        if (messages.length === 0) {
+            return ResultEntity.success();
+        }
+
+        const outboxUpdateResult = await this.outboxRepository.updateStatusByIds(
+            messages.map((message) => message.outboxId),
+            {
+                status: OutboxStatus.IN_PROCESS,
+                error: null,
+            },
+        );
+
+        if (outboxUpdateResult.isFailure) {
+            return ResultEntity.failure(outboxUpdateResult.error);
+        }
+
+        const publishResult = await this.eventPublisher.notifyOutboxToUser(messages);
 
         if (publishResult.isFailure) {
             return ResultEntity.failure(publishResult.error);
         }
 
         return ResultEntity.success();
+    }
+
+    private async markAsError(outboxIds: string[], error: string): Promise<ResultEntity<void>> {
+        if (outboxIds.length === 0) {
+            return ResultEntity.success();
+        }
+
+        return this.outboxRepository.updateStatusByIds(outboxIds, {
+            status: OutboxStatus.ERROR,
+            error,
+        });
+    }
+
+    private getUserId(outbox: OutboxEntity): string | null {
+        const userId = outbox.payload?.userId;
+
+        if (typeof userId !== 'string') {
+            return null;
+        }
+
+        const normalizedUserId = userId.trim();
+        return normalizedUserId.length > 0 ? normalizedUserId : null;
     }
 }

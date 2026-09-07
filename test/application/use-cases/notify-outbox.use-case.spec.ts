@@ -47,12 +47,14 @@ describe('NotifyOutboxUseCase', () => {
                 email: 'two@test.com',
                 fullname: 'User Two',
                 birthDate: new Date('2001-01-01'),
+                isActive: true,
             },
             {
                 id: 'user-1',
                 email: 'one@test.com',
                 fullname: 'User One',
                 birthDate: new Date('2000-01-01'),
+                isActive: true,
             },
         ];
 
@@ -91,6 +93,99 @@ describe('NotifyOutboxUseCase', () => {
                 occurredOn: outboxes[1].occurredOn,
             },
         ]);
+        expect(result.isSuccess).toBe(true);
+    });
+
+    it('should mark an outbox as error and skip publishing when its user does not exist', async () => {
+        const outbox = {
+            id: 'outbox-missing-user',
+            type: OutboxType.SIGNED_IN_USER,
+            payload: { userId: 'missing-user' },
+            occurredOn: new Date('2026-09-05T12:30:00.000Z'),
+        };
+        outboxRepository.getByStatusAndType.mockResolvedValue(ResultEntity.success([outbox]));
+        userRepository.getByIds.mockResolvedValue(ResultEntity.success([]));
+        outboxRepository.updateStatusByIds.mockResolvedValue(ResultEntity.success());
+
+        const result = await useCase.execute();
+
+        expect(outboxRepository.updateStatusByIds).toHaveBeenCalledWith(['outbox-missing-user'], {
+            status: OutboxStatus.ERROR,
+            error: 'USER_NOT_FOUND',
+        });
+        expect(eventPublisher.notifyOutboxToUser).not.toHaveBeenCalled();
+        expect(result.isSuccess).toBe(true);
+    });
+
+    it('should mark an outbox as error and skip publishing when its user is inactive', async () => {
+        const outbox = {
+            id: 'outbox-inactive-user',
+            type: OutboxType.SIGNED_IN_USER,
+            payload: { userId: 'inactive-user' },
+            occurredOn: new Date('2026-09-05T12:30:00.000Z'),
+        };
+        outboxRepository.getByStatusAndType.mockResolvedValue(ResultEntity.success([outbox]));
+        userRepository.getByIds.mockResolvedValue(
+            ResultEntity.success([
+                {
+                    id: 'inactive-user',
+                    email: 'inactive@test.com',
+                    fullname: 'Inactive User',
+                    birthDate: null,
+                    isActive: false,
+                },
+            ]),
+        );
+        outboxRepository.updateStatusByIds.mockResolvedValue(ResultEntity.success());
+
+        const result = await useCase.execute();
+
+        expect(outboxRepository.updateStatusByIds).toHaveBeenCalledWith(['outbox-inactive-user'], {
+            status: OutboxStatus.ERROR,
+            error: 'USER_INACTIVE',
+        });
+        expect(eventPublisher.notifyOutboxToUser).not.toHaveBeenCalled();
+        expect(result.isSuccess).toBe(true);
+    });
+
+    it('should mark an outbox as error without querying users when its payload has no user id', async () => {
+        const outbox = {
+            id: 'outbox-invalid-payload',
+            type: OutboxType.SIGNED_IN_USER,
+            payload: null,
+            occurredOn: new Date('2026-09-05T12:30:00.000Z'),
+        };
+        outboxRepository.getByStatusAndType.mockResolvedValue(ResultEntity.success([outbox]));
+        outboxRepository.updateStatusByIds.mockResolvedValue(ResultEntity.success());
+
+        const result = await useCase.execute();
+
+        expect(outboxRepository.updateStatusByIds).toHaveBeenCalledWith(['outbox-invalid-payload'], {
+            status: OutboxStatus.ERROR,
+            error: 'USER_ID_MISSING',
+        });
+        expect(userRepository.getByIds).not.toHaveBeenCalled();
+        expect(eventPublisher.notifyOutboxToUser).not.toHaveBeenCalled();
+        expect(result.isSuccess).toBe(true);
+    });
+
+    it('should reject a non-string user id from an untrusted outbox payload', async () => {
+        const outbox = {
+            id: 'outbox-invalid-user-id',
+            type: OutboxType.SIGNED_IN_USER,
+            payload: { userId: 42 },
+            occurredOn: new Date('2026-09-05T12:30:00.000Z'),
+        };
+        outboxRepository.getByStatusAndType.mockResolvedValue(ResultEntity.success([outbox]));
+        outboxRepository.updateStatusByIds.mockResolvedValue(ResultEntity.success());
+
+        const result = await useCase.execute();
+
+        expect(outboxRepository.updateStatusByIds).toHaveBeenCalledWith(['outbox-invalid-user-id'], {
+            status: OutboxStatus.ERROR,
+            error: 'USER_ID_MISSING',
+        });
+        expect(userRepository.getByIds).not.toHaveBeenCalled();
         expect(result.isSuccess).toBe(true);
     });
 
