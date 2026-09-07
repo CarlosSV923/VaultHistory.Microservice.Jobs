@@ -8,12 +8,16 @@ import { ConsumerService } from '@infrastructure/messaging/kafka/services/consum
 describe('ConsumerService', () => {
     const topic = 'update-users-topic';
     const consumerHandlerId = Symbol('ConsumerHandler');
-    let consumerInstance: { run: jest.Mock };
+    let consumerInstance: { run: jest.Mock; stop: jest.Mock; disconnect: jest.Mock };
     let handler: { handle: jest.Mock };
     let service: ConsumerService;
 
     beforeEach(async () => {
-        consumerInstance = { run: jest.fn().mockResolvedValue(undefined) };
+        consumerInstance = {
+            run: jest.fn().mockResolvedValue(undefined),
+            stop: jest.fn().mockResolvedValue(undefined),
+            disconnect: jest.fn().mockResolvedValue(undefined),
+        };
         handler = { handle: jest.fn() };
         const kafkaClientConfig = new KafkaClientConfig(
             {} as never,
@@ -65,5 +69,15 @@ describe('ConsumerService', () => {
                 },
             }),
         ).resolves.toBeUndefined();
+    });
+
+    it('stops the consumer before disconnecting during shutdown', async () => {
+        await service.onModuleDestroy();
+
+        expect(consumerInstance.stop).toHaveBeenCalledTimes(1);
+        expect(consumerInstance.disconnect).toHaveBeenCalledTimes(1);
+        expect(consumerInstance.stop.mock.invocationCallOrder[0]).toBeLessThan(
+            consumerInstance.disconnect.mock.invocationCallOrder[0],
+        );
     });
 });

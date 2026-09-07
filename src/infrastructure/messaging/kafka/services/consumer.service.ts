@@ -20,6 +20,7 @@ export class ConsumerService implements OnModuleInit, OnModuleDestroy {
 
     async onModuleDestroy(): Promise<void> {
         try {
+            await this.consumerInstance.stop();
             await this.consumerInstance.disconnect();
             this.logger.log('Successfully disconnected from Kafka broker for consuming messages');
         } catch (error) {
