@@ -48,7 +48,6 @@ describe('PrismaUserRepository', () => {
 
             expect(prismaService.user.findMany).toHaveBeenCalledWith({
                 where: {
-                    isActive: true,
                     id: { in: ['user-1'] },
                 },
             });

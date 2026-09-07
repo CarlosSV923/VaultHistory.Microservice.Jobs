@@ -162,6 +162,8 @@ Los mensajes se publican como JSON UTF-8 en `camelCase`. Las fechas se serializa
 
 `UserSignedInEvent` es el tipo de outbox que activa este flujo de notificación. `CreateUserEvent` se procesa por el flujo general de outbox y no se publica en `notify-outbox-topic`.
 
+Antes de publicar, Jobs valida que el evento tenga `userId` y consulta al usuario sin filtrar su estado. Un payload inválido, un usuario inexistente o un usuario inactivo deja el outbox en `ERROR` con `USER_ID_MISSING`, `USER_NOT_FOUND` o `USER_INACTIVE`, respectivamente. De este modo el cron no deja registros en `IN_PROCESS` sin una ruta explícita de recuperación.
+
 Los resultados consumidos por Jobs actualizan una sola entidad y usan `id` como identificador escalar:
 
 ```json
