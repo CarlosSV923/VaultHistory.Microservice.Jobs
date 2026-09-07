@@ -87,7 +87,11 @@ export class ConsumerService implements OnModuleInit, OnModuleDestroy {
                     const handlers = this.consumersTopicMap.get(topic) || [];
                     const parsedMessage = this.parseMessage(message.value?.toString() ?? '');
 
-                    if (!parsedMessage || typeof parsedMessage !== 'object' || Array.isArray(parsedMessage)) {
+                    if (
+                        !parsedMessage ||
+                        typeof parsedMessage !== 'object' ||
+                        Array.isArray(parsedMessage)
+                    ) {
                         throw new Error(
                             `No se puede procesar mensaje para el topic: ${topic} - No cumple la estructura definida`,
                         );
