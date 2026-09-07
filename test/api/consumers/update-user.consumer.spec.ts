@@ -19,7 +19,7 @@ describe('UpdateUsersConsumer', () => {
     it('should call update users use case and return its result', async () => {
         const message = {
             id: 'user-1',
-            data: { notificationStatus: 'SUCCESS', notificationDate: new Date() },
+            data: { notificationStatus: 'NOTIFIED', notificationDate: '2026-09-07T12:00:00.000Z' },
         };
         const metadata: ConsumerMetadata = {
             topic: 'users-topic',
@@ -34,12 +34,21 @@ describe('UpdateUsersConsumer', () => {
 
         const result = await consumer.handle(message, metadata);
 
-        expect(useCase.execute).toHaveBeenCalledWith(message);
+        expect(useCase.execute).toHaveBeenCalledWith({
+            id: 'user-1',
+            data: { notificationStatus: 'NOTIFIED', notificationDate: new Date('2026-09-07T12:00:00.000Z') },
+        });
         expect(result).toBe(expectedResult);
     });
 
-    it.each([{ ids: ['user-1'] }, { id: '' }, { id: ['user-1'] }])(
-        'should reject a message without a scalar id',
+    it.each([
+        { ids: ['user-1'] },
+        { id: '' },
+        { id: ['user-1'] },
+        { id: 'user-1', data: { notificationStatus: 'NOTIFIED', notificationDate: null } },
+        { id: 'user-1', data: { notificationStatus: 'UNKNOWN', notificationDate: null } },
+    ])(
+        'should reject a message without a valid scalar result',
         async (message) => {
             const metadata: ConsumerMetadata = {
                 topic: 'users-topic',

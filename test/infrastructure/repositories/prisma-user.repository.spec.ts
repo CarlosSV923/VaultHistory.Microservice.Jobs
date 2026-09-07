@@ -133,7 +133,7 @@ describe('PrismaUserRepository', () => {
                     id: 'user-2',
                     fullname: 'Jane Doe',
                     email: 'jane@example.com',
-                    birthDate: birthdate,
+                    birthDate: new Date('1990-07-06T00:00:00Z'),
                     notification: true,
                     notificationStatus: 'NONE',
                     notificationDate: null,
@@ -153,23 +153,80 @@ describe('PrismaUserRepository', () => {
                 where: {
                     isActive: true,
                     notification: true,
-                    birthDate: {
-                        gte: expect.any(Date),
-                        lt: expect.any(Date),
-                    },
-                    notificationStatus: {
-                        not: NotificationStatus.IN_PROCESS,
-                    },
-                    OR: [
-                        { notificationDate: null },
-                        { notificationDate: { lt: expect.any(Date) } },
+                    AND: [
+                        {
+                            OR: [
+                                { notificationStatus: null },
+                                {
+                                    notificationStatus: {
+                                        notIn: [
+                                            NotificationStatus.IN_PROCESS,
+                                            NotificationStatus.ERROR,
+                                        ],
+                                    },
+                                },
+                            ],
+                        },
+                        {
+                            OR: [
+                                { notificationDate: null },
+                                { notificationDate: { lt: expect.any(Date) } },
+                            ],
+                        },
                     ],
                 },
-                take: 50,
             });
             expect(result.isSuccess).toBe(true);
             expect(result.Value.length).toBe(1);
             expect(result.Value[0].id).toBe('user-2');
+        });
+
+        it('should use UTC month and day, exclude prior errors, and keep February 29 for leap years only', async () => {
+            configService.get.mockReturnValue(50);
+            prismaService.user.findMany.mockResolvedValue([
+                {
+                    id: 'birthday-user',
+                    fullname: 'Birthday User',
+                    email: 'birthday@example.com',
+                    birthDate: new Date('1996-02-29T00:00:00Z'),
+                    notification: true,
+                    notificationStatus: null,
+                    notificationDate: null,
+                    createdAt: new Date(),
+                    updatedAt: null,
+                    isActive: true,
+                    theme: null,
+                    character: null,
+                },
+                {
+                    id: 'other-day-user',
+                    fullname: 'Other Day User',
+                    email: 'other-day@example.com',
+                    birthDate: new Date('1990-02-27T00:00:00Z'),
+                    notification: true,
+                    notificationStatus: null,
+                    notificationDate: null,
+                    createdAt: new Date(),
+                    updatedAt: null,
+                    isActive: true,
+                    theme: null,
+                    character: null,
+                },
+            ]);
+
+            const leapYearResult = await repository.getToNotifyByBirthday(
+                new Date('2028-02-29T12:00:00Z'),
+            );
+
+            expect(leapYearResult.isSuccess).toBe(true);
+            expect(leapYearResult.Value.map((user) => user.id)).toEqual(['birthday-user']);
+
+            const nonLeapYearResult = await repository.getToNotifyByBirthday(
+                new Date('2027-02-28T12:00:00Z'),
+            );
+
+            expect(nonLeapYearResult.isFailure).toBe(true);
+            expect(nonLeapYearResult.error.code).toBe(ErrorCodes.NotFound);
         });
 
         it('should return NotFound when no birthday users found', async () => {

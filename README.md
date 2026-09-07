@@ -180,6 +180,26 @@ Internamente, los repositorios conservan operaciones por lote y reciben un arreg
 
 El consumer group se configura mediante `KAFKA_GROUP_ID`. Kafka utiliza `KAFKA_BROKER` como broker principal y reintenta las operaciones de consumo y publicacion cuando ocurren errores transitorios.
 
+### Selección y recuperación
+
+Los cumpleaños se comparan por mes y día en UTC, sin considerar el año de nacimiento. El 29 de febrero se notifica solamente en años bisiestos. Un usuario con estado `ERROR` no se selecciona otra vez de forma automática durante el mismo flujo.
+
+Antes de publicar, Jobs reserva los registros con `IN_PROCESS`. Si la publicación falla de forma conocida, cambia el registro a `ERROR`: los usuarios reciben fecha nula y los outbox reciben `NOTIFICATION_PUBLISH_FAILED`. La recuperación automática no reenvía resultados cuya publicación pudo haber sido incierta.
+
+Para recuperar registros antiguos que permanezcan en `IN_PROCESS`, revisar primero la causa y los logs. Tras confirmar que no se enviaron o procesaron, marcarlos manualmente como `ERROR` para investigarlos o reprogramarlos mediante un procedimiento controlado:
+
+```sql
+UPDATE users
+SET "notificationStatus" = 'ERROR', "notificationDate" = NULL
+WHERE "notificationStatus" = 'IN_PROCESS';
+
+UPDATE outbox_messages
+SET status = 'ERROR', error = 'MANUAL_RECOVERY'
+WHERE status = 'IN_PROCESS';
+```
+
+No ejecutar estas sentencias de forma ciega: validar el rango de IDs y el estado de Kafka/Notification antes de aplicarlas.
+
 ## Domain-Driven Design
 
 El proyecto aplica conceptos de Domain-Driven Design para mantener el dominio aislado y expresivo.
