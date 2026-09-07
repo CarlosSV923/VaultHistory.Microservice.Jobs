@@ -53,9 +53,7 @@ export class NotifyOutboxUseCase {
             return ResultEntity.success();
         }
 
-        const userIds = [
-            ...new Set(candidateOutboxes.map(({ userId }) => userId)),
-        ];
+        const userIds = [...new Set(candidateOutboxes.map(({ userId }) => userId))];
 
         const userResult = await this.userRepository.getByIds(userIds);
 
@@ -142,10 +140,7 @@ export class NotifyOutboxUseCase {
         return ResultEntity.success();
     }
 
-    private async markAsError(
-        outboxIds: string[],
-        error: string,
-    ): Promise<ResultEntity<void>> {
+    private async markAsError(outboxIds: string[], error: string): Promise<ResultEntity<void>> {
         if (outboxIds.length === 0) {
             return ResultEntity.success();
         }
