@@ -1,5 +1,7 @@
 # VaultHistory.Microservice.Jobs
 
+English documentation: [docs/overview.md](docs/overview.md).
+
 Microservicio desarrollado con NestJS para ejecutar tareas asincronas del sistema VaultHistory.
 
 Este repositorio documenta principalmente aspectos tecnicos del proyecto: arquitectura, ejecucion local, Docker, PostgreSQL, Prisma, Kafka, tareas programadas y flujo de pruebas.
