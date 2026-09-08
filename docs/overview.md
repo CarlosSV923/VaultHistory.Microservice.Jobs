@@ -10,3 +10,5 @@ Jobs is a NestJS worker that schedules notification work, publishes Kafka messag
 Jobs publishes `notify-history-topic` and `notify-outbox-topic`; it consumes `update-users-topic` and `update-outbox-topic`. Result contracts use a scalar `id`. The worker has no business HTTP endpoints.
 
 Each birthday notification includes a stable `notificationId` composed from the user identifier and UTC year, allowing downstream services to resume retries without regenerating the same subscription story.
+
+Birthday eligibility uses UTC dates. Active users with notifications enabled are selected once per calendar year after a confirmed notification. `ERROR` and `IN_PROCESS` states prevent repeated work during their current year, but users with those states from an earlier year become eligible again. A 29 February birthday is notified on 28 February in non-leap years.
