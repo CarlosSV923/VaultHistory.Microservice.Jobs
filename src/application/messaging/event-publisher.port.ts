@@ -8,6 +8,7 @@ export class NotifyMessage {
 }
 
 export class NotifyHistoryMessage extends NotifyMessage {
+    notificationId!: string;
     theme?: string | null;
     character?: string | null;
 }

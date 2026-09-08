@@ -30,6 +30,7 @@ export class NotifyUserUseCase {
                 email: user.email,
                 fullname: user.fullname,
                 userId: user.id,
+                notificationId: `${user.id}:${birthdate.getUTCFullYear()}`,
                 birthDate: user.birthDate,
                 character: user.character,
                 theme: user.theme,

@@ -50,6 +50,7 @@ describe('NotifyUserUseCase', () => {
                 email: 'one@test.com',
                 fullname: 'User One',
                 userId: 'user-1',
+                notificationId: 'user-1:2000',
                 birthDate: birthdate,
                 character: 'hero',
                 theme: 'dark',
