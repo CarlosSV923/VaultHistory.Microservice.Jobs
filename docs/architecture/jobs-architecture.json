@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Jobs Microservice Architecture",
+    "quality_profile": "showcase",
+    "output": "jobs-architecture.html",
+    "views": [
+      { "id": "scheduled-work", "label": "Scheduled work", "focus": ["scheduler", "jobs", "postgres", "kafka"], "note": "Cron jobs select eligible users and outbox events, reserve them and publish notification work." },
+      { "id": "result-processing", "label": "Result processing", "focus": ["notification", "kafka", "jobs", "postgres"], "note": "Kafka consumers apply correlated Notification outcomes to a single user or outbox record." }
+    ]
+  },
+  "components": [
+    { "id": "scheduler", "type": "backend", "label": "NestJS scheduler", "sublabel": "three cron jobs", "pos": [40, 210], "size": [160, 64] },
+    { "id": "jobs", "type": "backend", "label": "Jobs worker", "sublabel": "DDD use cases and ports", "pos": [280, 210], "size": [170, 64] },
+    { "id": "postgres", "type": "database", "label": "PostgreSQL", "sublabel": "users and outbox", "pos": [530, 120], "size": [170, 64] },
+    { "id": "kafka", "type": "messagebus", "label": "Apache Kafka", "sublabel": "notification and result topics", "pos": [530, 310], "size": [180, 64] },
+    { "id": "notification", "type": "backend", "label": "Notification worker", "sublabel": "external producer and consumer", "pos": [790, 310], "size": [180, 64] }
+  ],
+  "connections": [
+    { "id": "schedule-jobs", "from": "scheduler", "to": "jobs", "label": "trigger use cases", "variant": "emphasis", "labelAt": [240, 288] },
+    { "id": "jobs-postgres", "from": "jobs", "to": "postgres", "label": "Prisma read and update", "fromSide": "right", "toSide": "left", "labelAt": [490, 198] },
+    { "id": "jobs-kafka", "from": "jobs", "to": "kafka", "label": "publish notification work", "fromSide": "right", "toSide": "left", "labelAt": [490, 288] },
+    { "id": "kafka-jobs", "from": "kafka", "to": "jobs", "label": "consume outcomes", "fromSide": "left", "toSide": "bottom" },
+    { "id": "kafka-notification", "from": "kafka", "to": "notification", "label": "deliver work", "variant": "emphasis" },
+    { "id": "notification-kafka", "from": "notification", "to": "kafka", "label": "publish outcomes", "fromSide": "bottom", "toSide": "bottom" }
+  ],
+  "cards": [
+    { "dot": "amber", "title": "Scheduled selection", "items": ["Birthday and outbox jobs reserve work before publishing.", "Known publication failures are persisted as errors."] },
+    { "dot": "violet", "title": "Kafka contracts", "items": ["Jobs publishes history and outbox notifications.", "Result consumers require a scalar id for correlation."] },
+    { "dot": "emerald", "title": "Shared database", "items": ["Jobs uses Prisma against the User-owned schema.", "Jobs does not run database migrations."] }
+  ]
+}
