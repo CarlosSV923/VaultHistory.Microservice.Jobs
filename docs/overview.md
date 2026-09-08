@@ -8,3 +8,5 @@ Jobs is a NestJS worker that schedules notification work, publishes Kafka messag
 - Central Docker environment: [Vault.History.System](https://github.com/CarlosSV923/Vault.History.System)
 
 Jobs publishes `notify-history-topic` and `notify-outbox-topic`; it consumes `update-users-topic` and `update-outbox-topic`. Result contracts use a scalar `id`. The worker has no business HTTP endpoints.
+
+Each birthday notification includes a stable `notificationId` composed from the user identifier and UTC year, allowing downstream services to resume retries without regenerating the same subscription story.
