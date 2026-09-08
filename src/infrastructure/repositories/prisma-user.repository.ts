@@ -104,11 +104,17 @@ export class PrismaUserRepository implements UserRepositoryPort {
                                 { notificationStatus: null },
                                 {
                                     notificationStatus: {
-                                        notIn: [
-                                            NotificationStatus.IN_PROCESS,
-                                            NotificationStatus.ERROR,
-                                        ],
+                                        notIn: [NotificationStatus.IN_PROCESS, NotificationStatus.ERROR],
                                     },
+                                },
+                                {
+                                    notificationStatus: {
+                                        in: [NotificationStatus.IN_PROCESS, NotificationStatus.ERROR],
+                                    },
+                                    OR: [
+                                        { updatedAt: null },
+                                        { updatedAt: { lt: startOfYear } },
+                                    ],
                                 },
                             ],
                         },
@@ -167,7 +173,7 @@ export class PrismaUserRepository implements UserRepositoryPort {
         const isLeapDay = birthDate.getUTCMonth() === 1 && birthDate.getUTCDate() === 29;
 
         if (isLeapDay && !this.isLeapYear(targetYear)) {
-            return false;
+            return targetMonth === 1 && targetDay === 28;
         }
 
         return birthDate.getUTCMonth() === targetMonth && birthDate.getUTCDate() === targetDay;

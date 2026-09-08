@@ -159,11 +159,17 @@ describe('PrismaUserRepository', () => {
                                 { notificationStatus: null },
                                 {
                                     notificationStatus: {
-                                        notIn: [
-                                            NotificationStatus.IN_PROCESS,
-                                            NotificationStatus.ERROR,
-                                        ],
+                                        notIn: [NotificationStatus.IN_PROCESS, NotificationStatus.ERROR],
                                     },
+                                },
+                                {
+                                    notificationStatus: {
+                                        in: [NotificationStatus.IN_PROCESS, NotificationStatus.ERROR],
+                                    },
+                                    OR: [
+                                        { updatedAt: null },
+                                        { updatedAt: { lt: expect.any(Date) } },
+                                    ],
                                 },
                             ],
                         },
@@ -181,7 +187,7 @@ describe('PrismaUserRepository', () => {
             expect(result.Value[0].id).toBe('user-2');
         });
 
-        it('should use UTC month and day, exclude prior errors, and keep February 29 for leap years only', async () => {
+        it('should use UTC month and day, including February 29 on leap years and February 28 otherwise', async () => {
             configService.get.mockReturnValue(50);
             prismaService.user.findMany.mockResolvedValue([
                 {
@@ -225,8 +231,37 @@ describe('PrismaUserRepository', () => {
                 new Date('2027-02-28T12:00:00Z'),
             );
 
-            expect(nonLeapYearResult.isFailure).toBe(true);
-            expect(nonLeapYearResult.error.code).toBe(ErrorCodes.NotFound);
+            expect(nonLeapYearResult.isSuccess).toBe(true);
+            expect(nonLeapYearResult.Value.map((user) => user.id)).toEqual(['birthday-user']);
+        });
+
+        it('should allow prior-year errors while excluding errors from the current year', async () => {
+            configService.get.mockReturnValue(50);
+            prismaService.user.findMany.mockResolvedValue([]);
+
+            await repository.getToNotifyByBirthday(new Date('2027-07-06T12:00:00Z'));
+
+            expect(prismaService.user.findMany).toHaveBeenCalledWith({
+                where: expect.objectContaining({
+                    isActive: true,
+                    notification: true,
+                    AND: expect.arrayContaining([
+                        expect.objectContaining({
+                            OR: expect.arrayContaining([
+                                expect.objectContaining({
+                                    notificationStatus: {
+                                        in: [NotificationStatus.IN_PROCESS, NotificationStatus.ERROR],
+                                    },
+                                    OR: [
+                                        { updatedAt: null },
+                                        { updatedAt: { lt: new Date('2027-01-01T00:00:00Z') } },
+                                    ],
+                                }),
+                            ]),
+                        }),
+                    ]),
+                }),
+            });
         });
 
         it('should return NotFound when no birthday users found', async () => {
