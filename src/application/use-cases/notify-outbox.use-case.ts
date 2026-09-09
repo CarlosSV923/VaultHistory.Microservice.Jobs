@@ -24,6 +24,7 @@ export class NotifyOutboxUseCase {
     async execute(): Promise<ResultEntity<void>> {
         const outboxResult = await this.outboxRepository.getByStatusAndType(OutboxStatus.PENDING, [
             OutboxType.SIGNED_IN_USER,
+            OutboxType.CREATE_USER,
         ]);
 
         if (outboxResult.isFailure) {
@@ -161,13 +162,21 @@ export class NotifyOutboxUseCase {
     }
 
     private getUserId(outbox: OutboxEntity): string | null {
-        const userId = outbox.payload?.userId;
+        const payload = outbox.payload as Record<string, unknown> | null;
+        return this.readUserId(payload?.userId) ?? this.readUserId(payload?.UserId);
+    }
 
-        if (typeof userId !== 'string') {
+    private readUserId(value: unknown): string | null {
+        if (typeof value === 'string') {
+            const normalizedUserId = value.trim();
+            return normalizedUserId.length > 0 ? normalizedUserId : null;
+        }
+
+        if (!value || typeof value !== 'object') {
             return null;
         }
 
-        const normalizedUserId = userId.trim();
-        return normalizedUserId.length > 0 ? normalizedUserId : null;
+        const legacyUserId = value as Record<string, unknown>;
+        return this.readUserId(legacyUserId.Value) ?? this.readUserId(legacyUserId.value);
     }
 }

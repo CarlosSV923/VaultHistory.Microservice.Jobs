@@ -67,6 +67,7 @@ describe('NotifyOutboxUseCase', () => {
 
         expect(outboxRepository.getByStatusAndType).toHaveBeenCalledWith(OutboxStatus.PENDING, [
             OutboxType.SIGNED_IN_USER,
+            OutboxType.CREATE_USER,
         ]);
         expect(outboxRepository.updateStatusByIds).toHaveBeenCalledWith(['outbox-1', 'outbox-2'], {
             status: OutboxStatus.IN_PROCESS,
@@ -93,6 +94,45 @@ describe('NotifyOutboxUseCase', () => {
                 occurredOn: outboxes[1].occurredOn,
             },
         ]);
+        expect(result.isSuccess).toBe(true);
+    });
+
+    it('should publish a pending legacy create-user outbox with its original correlation id', async () => {
+        const outbox = {
+            id: 'outbox-welcome-1',
+            type: OutboxType.CREATE_USER,
+            payload: { UserId: { Value: 'user-1' } },
+            occurredOn: new Date('2026-09-08T12:30:00.000Z'),
+        };
+        const user = {
+            id: 'user-1',
+            email: 'one@test.com',
+            fullname: 'User One',
+            birthDate: null,
+            isActive: true,
+        };
+        outboxRepository.getByStatusAndType.mockResolvedValue(ResultEntity.success([outbox]));
+        outboxRepository.updateStatusByIds.mockResolvedValue(ResultEntity.success());
+        userRepository.getByIds.mockResolvedValue(ResultEntity.success([user]));
+        eventPublisher.notifyOutboxToUser.mockResolvedValue(ResultEntity.success());
+
+        const result = await useCase.execute();
+
+        expect(eventPublisher.notifyOutboxToUser).toHaveBeenCalledWith([
+            {
+                outboxId: 'outbox-welcome-1',
+                email: 'one@test.com',
+                fullname: 'User One',
+                type: OutboxType.CREATE_USER,
+                userId: 'user-1',
+                birthDate: null,
+                occurredOn: outbox.occurredOn,
+            },
+        ]);
+        expect(outboxRepository.updateStatusByIds).toHaveBeenCalledWith(['outbox-welcome-1'], {
+            status: OutboxStatus.IN_PROCESS,
+            error: null,
+        });
         expect(result.isSuccess).toBe(true);
     });
 
