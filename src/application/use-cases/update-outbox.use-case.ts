@@ -5,7 +5,13 @@ import type { OutboxRepositoryPort } from '@domain/outbox/ports/outbox-repositor
 
 export class UpdateOutboxUseCasePayload {
     id!: string;
-    data!: { status: string; error: string | null };
+    data!: {
+        status: string;
+        error: string | null;
+        notificationNextRetryAt?: Date | null;
+        notificationFailureStage?: string | null;
+        notificationFailureReason?: string | null;
+    };
 }
 
 @Injectable()

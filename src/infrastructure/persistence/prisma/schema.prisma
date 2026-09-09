@@ -21,6 +21,11 @@ model User {
   notification       Boolean   @default(false)
   notificationStatus String?
   notificationDate   DateTime? @db.Timestamptz(3)
+  notificationAttemptCount Int @default(0)
+  notificationProcessingStartedAt DateTime? @db.Timestamptz(3)
+  notificationNextRetryAt DateTime? @db.Timestamptz(3)
+  notificationFailureStage String?
+  notificationFailureReason String?
   createdAt          DateTime  @db.Timestamptz(3)
   updatedAt          DateTime? @db.Timestamptz(3)
   isActive           Boolean   @default(true)
@@ -40,6 +45,11 @@ model Outbox {
   status     String?   @default("PENDING")
   updateAt   DateTime? @db.Timestamptz(3)
   error      String?
+  notificationAttemptCount Int @default(0)
+  notificationProcessingStartedAt DateTime? @db.Timestamptz(3)
+  notificationNextRetryAt DateTime? @db.Timestamptz(3)
+  notificationFailureStage String?
+  notificationFailureReason String?
 
   @@map("outbox_messages")
 }

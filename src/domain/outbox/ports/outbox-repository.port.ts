@@ -5,7 +5,13 @@ export interface OutboxRepositoryPort {
     getByStatusAndType(status: string, types: string[]): Promise<ResultEntity<OutboxEntity[]>>;
     updateStatusByIds(
         ids: string[],
-        data: { status: string; error: string | null },
+        data: {
+            status: string;
+            error: string | null;
+            notificationNextRetryAt?: Date | null;
+            notificationFailureStage?: string | null;
+            notificationFailureReason?: string | null;
+        },
     ): Promise<ResultEntity<void>>;
 }
 

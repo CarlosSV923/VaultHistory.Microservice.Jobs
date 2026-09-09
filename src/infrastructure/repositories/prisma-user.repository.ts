@@ -59,7 +59,13 @@ export class PrismaUserRepository implements UserRepositoryPort {
     }
     async updateNotificationStatusByIds(
         ids: string[],
-        data: { notificationStatus: string; notificationDate: Date | null },
+        data: {
+            notificationStatus: string;
+            notificationDate: Date | null;
+            notificationNextRetryAt?: Date | null;
+            notificationFailureStage?: string | null;
+            notificationFailureReason?: string | null;
+        },
     ): Promise<ResultEntity<void>> {
         const idsJoin = ids.join(',');
         try {
@@ -72,6 +78,9 @@ export class PrismaUserRepository implements UserRepositoryPort {
                 data: {
                     notificationStatus: data.notificationStatus,
                     notificationDate: data.notificationDate,
+                    notificationNextRetryAt: data.notificationNextRetryAt,
+                    notificationFailureStage: data.notificationFailureStage,
+                    notificationFailureReason: data.notificationFailureReason,
                     updatedAt: new Date(Date.now()),
                 },
             });
@@ -93,6 +102,7 @@ export class PrismaUserRepository implements UserRepositoryPort {
         try {
             const take = Number(this.configService.get<number>('USER_QUERY_LIMIT'));
             const startOfYear = new Date(Date.UTC(birthdate.getUTCFullYear(), 0, 1));
+            const now = new Date();
 
             const users = await this.prismaService.user.findMany({
                 where: {
@@ -103,8 +113,19 @@ export class PrismaUserRepository implements UserRepositoryPort {
                             OR: [
                                 { notificationStatus: null },
                                 {
+                                    notificationStatus: NotificationStatus.PENDING,
+                                    OR: [
+                                        { notificationNextRetryAt: null },
+                                        { notificationNextRetryAt: { lte: now } },
+                                    ],
+                                },
+                                {
                                     notificationStatus: {
-                                        notIn: [NotificationStatus.IN_PROCESS, NotificationStatus.ERROR],
+                                        notIn: [
+                                            NotificationStatus.PENDING,
+                                            NotificationStatus.IN_PROCESS,
+                                            NotificationStatus.ERROR,
+                                        ],
                                     },
                                 },
                                 {
@@ -112,8 +133,11 @@ export class PrismaUserRepository implements UserRepositoryPort {
                                         in: [NotificationStatus.IN_PROCESS, NotificationStatus.ERROR],
                                     },
                                     OR: [
-                                        { updatedAt: null },
-                                        { updatedAt: { lt: startOfYear } },
+                                        { notificationProcessingStartedAt: { lt: startOfYear } },
+                                        {
+                                            notificationProcessingStartedAt: null,
+                                            updatedAt: { lt: startOfYear },
+                                        },
                                     ],
                                 },
                             ],

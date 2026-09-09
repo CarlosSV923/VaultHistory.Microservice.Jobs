@@ -46,15 +46,30 @@ export class UpdateOutboxConsumer implements ConsumerHandler<UpdateOutboxUseCase
             return null;
         }
 
-        const { status, error } = message.data;
+        const { status, error, notificationFailureStage } = message.data;
+        const failureStage = this.toSafeText(notificationFailureStage);
         if (status === OutboxStatus.PROCESSED && error === null) {
             return { id: message.id.trim(), data: { status, error: null } };
         }
 
         if (status === OutboxStatus.ERROR && typeof error === 'string' && error.trim().length > 0) {
-            return { id: message.id.trim(), data: { status, error: error.trim() } };
+            return {
+                id: message.id.trim(),
+                data: {
+                    status,
+                    error: error.trim().slice(0, 80),
+                    notificationFailureStage: failureStage,
+                    notificationFailureReason: error.trim().slice(0, 80),
+                },
+            };
         }
 
         return null;
+    }
+
+    private toSafeText(value: unknown): string | null {
+        return typeof value === 'string' && value.trim().length > 0
+            ? value.trim().slice(0, 80)
+            : null;
     }
 }
