@@ -31,7 +31,6 @@ describe('ProcessOutboxUseCase', () => {
             OutboxType.EMAIL_CHANGED_USER,
             OutboxType.FULLNAME_CHANGED_USER,
             OutboxType.PASSWORD_CHANGED_USER,
-            OutboxType.CREATE_USER,
         ]);
         expect(outboxRepository.updateStatusByIds).toHaveBeenCalledWith(['outbox-1', 'outbox-2'], {
             status: OutboxStatus.PROCESSED,

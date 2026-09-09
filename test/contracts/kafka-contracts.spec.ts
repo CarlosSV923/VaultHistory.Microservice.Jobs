@@ -61,7 +61,8 @@ describe('Kafka contracts', () => {
         expect(message).not.toHaveProperty('ids');
     });
 
-    it('declares the signed-in event type for the future User integration', () => {
+    it('declares the supported outbox event types for User integration', () => {
         expect(OutboxType.SIGNED_IN_USER).toBe('UserSignedInEvent');
+        expect(OutboxType.CREATE_USER).toBe('CreateUserEvent');
     });
 });
