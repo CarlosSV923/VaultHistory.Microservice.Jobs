@@ -26,6 +26,10 @@ export class PrismaOutboxRepository implements OutboxRepositoryPort {
             const messages = await this.prismaService.outbox.findMany({
                 where: {
                     status,
+                    OR: [
+                        { notificationNextRetryAt: null },
+                        { notificationNextRetryAt: { lte: new Date() } },
+                    ],
                     type: {
                         in: types,
                     },
@@ -63,7 +67,13 @@ export class PrismaOutboxRepository implements OutboxRepositoryPort {
 
     async updateStatusByIds(
         ids: string[],
-        data: { status: string; error: string | null },
+        data: {
+            status: string;
+            error: string | null;
+            notificationNextRetryAt?: Date | null;
+            notificationFailureStage?: string | null;
+            notificationFailureReason?: string | null;
+        },
     ): Promise<ResultEntity<void>> {
         const idsJoin = ids.join(',');
         try {
@@ -77,6 +87,9 @@ export class PrismaOutboxRepository implements OutboxRepositoryPort {
                     status: data.status,
                     updateAt: new Date(Date.now()),
                     error: data.error,
+                    notificationNextRetryAt: data.notificationNextRetryAt,
+                    notificationFailureStage: data.notificationFailureStage,
+                    notificationFailureReason: data.notificationFailureReason,
                 },
             });
 

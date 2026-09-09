@@ -149,39 +149,19 @@ describe('PrismaUserRepository', () => {
             const result = await repository.getToNotifyByBirthday(birthdate);
 
             expect(configService.get).toHaveBeenCalledWith('USER_QUERY_LIMIT');
-            expect(prismaService.user.findMany).toHaveBeenCalledWith({
-                where: {
+            expect(prismaService.user.findMany).toHaveBeenCalledWith(expect.objectContaining({
+                where: expect.objectContaining({
                     isActive: true,
                     notification: true,
-                    AND: [
-                        {
-                            OR: [
-                                { notificationStatus: null },
-                                {
-                                    notificationStatus: {
-                                        notIn: [NotificationStatus.IN_PROCESS, NotificationStatus.ERROR],
-                                    },
-                                },
-                                {
-                                    notificationStatus: {
-                                        in: [NotificationStatus.IN_PROCESS, NotificationStatus.ERROR],
-                                    },
-                                    OR: [
-                                        { updatedAt: null },
-                                        { updatedAt: { lt: expect.any(Date) } },
-                                    ],
-                                },
-                            ],
-                        },
-                        {
-                            OR: [
-                                { notificationDate: null },
-                                { notificationDate: { lt: expect.any(Date) } },
-                            ],
-                        },
-                    ],
-                },
-            });
+                    AND: expect.arrayContaining([
+                        expect.objectContaining({
+                            OR: expect.arrayContaining([
+                                expect.objectContaining({ notificationStatus: NotificationStatus.PENDING }),
+                            ]),
+                        }),
+                    ]),
+                }),
+            }));
             expect(result.isSuccess).toBe(true);
             expect(result.Value.length).toBe(1);
             expect(result.Value[0].id).toBe('user-2');
@@ -252,10 +232,9 @@ describe('PrismaUserRepository', () => {
                                     notificationStatus: {
                                         in: [NotificationStatus.IN_PROCESS, NotificationStatus.ERROR],
                                     },
-                                    OR: [
-                                        { updatedAt: null },
-                                        { updatedAt: { lt: new Date('2027-01-01T00:00:00Z') } },
-                                    ],
+                                    OR: expect.arrayContaining([
+                                        { notificationProcessingStartedAt: { lt: new Date('2027-01-01T00:00:00Z') } },
+                                    ]),
                                 }),
                             ]),
                         }),

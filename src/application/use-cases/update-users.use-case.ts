@@ -5,7 +5,13 @@ import type { UserRepositoryPort } from '@domain/users/ports/user-repository.por
 
 export class UpdateUsersUseCasePayload {
     id!: string;
-    data!: { notificationStatus: string; notificationDate: Date | null };
+    data!: {
+        notificationStatus: string;
+        notificationDate: Date | null;
+        notificationNextRetryAt?: Date | null;
+        notificationFailureStage?: string | null;
+        notificationFailureReason?: string | null;
+    };
 }
 
 @Injectable()

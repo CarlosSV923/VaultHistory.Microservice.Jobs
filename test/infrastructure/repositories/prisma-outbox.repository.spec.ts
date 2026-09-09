@@ -46,6 +46,9 @@ describe('PrismaOutboxRepository', () => {
                 where: {
                     status: 'PENDING',
                     type: { in: ['USER_CREATED'] },
+                    OR: expect.arrayContaining([
+                        { notificationNextRetryAt: null },
+                    ]),
                 },
                 orderBy: { occurredOn: 'asc' },
                 take: 10,
