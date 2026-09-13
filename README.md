@@ -1,454 +1,124 @@
-# VaultHistory.Microservice.Jobs
+# Vault History Jobs
 
-English documentation: [docs/overview.md](docs/overview.md).
+Vault History Jobs is a NestJS worker that schedules notification work, publishes it to Kafka, and applies correlated delivery outcomes to the shared PostgreSQL database. It has no public business HTTP API.
 
-Microservicio desarrollado con NestJS para ejecutar tareas asincronas del sistema VaultHistory.
+The service is part of the [Vault History System](https://github.com/CarlosSV923/Vault.History.System). It works with the User service, the History and Notification downstream services, PostgreSQL, and Kafka.
 
-Este repositorio documenta principalmente aspectos tecnicos del proyecto: arquitectura, ejecucion local, Docker, PostgreSQL, Prisma, Kafka, tareas programadas y flujo de pruebas.
+## Architecture
 
-## Stack Tecnico
+![Vault History Jobs service architecture](docs/architecture/jobs-architecture.png)
 
-- Node.js 24
-- TypeScript
-- NestJS
-- PostgreSQL 17
-- Prisma 7
-- Apache Kafka 4
-- Docker / Docker Compose
-- Jest
-- Supertest
-- Volta, opcional para fijar versiones
+The scheduler invokes Jobs use cases. They read and reserve user or outbox records through Prisma, publish notification work to Kafka, and consume results from downstream services to update the original record. The image is a checked static preview of the interactive diagram.
 
-## Arquitectura
+- [Interactive architecture diagram](docs/architecture/jobs-architecture.html)
+- [Editable architecture source](docs/architecture/jobs-architecture.json)
 
-El proyecto esta organizado por capas, separando dominio, casos de uso, infraestructura y API.
+## Responsibilities
 
-```txt
+Jobs registers three configured cron jobs at startup:
+
+- `notify-user-cron` selects eligible users whose birthday matches the current UTC day and publishes story-notification work.
+- `notify-outbox-cron` selects pending sign-in and account-creation outbox events, validates their user data, and publishes delivery work.
+- `process-outbox-cron` marks the remaining supported user-change outbox events as processed without requesting an email.
+
+Before notification work is published, eligible records are reserved with `IN_PROCESS`. Known validation or publication failures are persisted as `ERROR`; downstream results later move records to their reported state. Jobs never exposes a business endpoint: scheduled jobs and Kafka consumers are its runtime entry points.
+
+## Kafka contracts
+
+| Direction | Topic configuration | Purpose |
+| --- | --- | --- |
+| Published | `KAFKA_NOTIFY_HISTORY_TOPIC` | Request birthday-story notification work. |
+| Published | `KAFKA_NOTIFY_OUTBOX_TOPIC` | Request sign-in or welcome-email work while preserving `outboxId`. |
+| Consumed | `KAFKA_UPDATE_USERS_TOPIC` | Apply a user notification outcome by scalar `id` (`userId`). |
+| Consumed | `KAFKA_UPDATE_OUTBOX_TOPIC` | Apply an outbox outcome by scalar `id` (`outboxId`). |
+
+Messages are JSON in camelCase and dates use ISO 8601 UTC. User and outbox results deliberately use one scalar `id`; legacy `ids` arrays are rejected. The relevant message fixtures are in `test/fixtures/kafka`.
+
+`CreateUserEvent` is routed through the outbox notification flow so Notification can render its existing welcome template. Other supported user-change events are handled by `process-outbox-cron` and do not trigger a notification.
+
+## Notification eligibility and recovery
+
+Birthday selection requires an active user with notifications enabled. A confirmed notification makes a user ineligible only for that calendar year; prior-year `ERROR` and `IN_PROCESS` checkpoints do not prevent a later annual notification. A 29 February birthday is notified on 28 February in a non-leap year.
+
+Users and outbox messages retain processing metadata such as attempts, processing start, next retry, failure stage, and failure reason. A safe temporary failure can return a user to `PENDING` with `notificationNextRetryAt`; permanent failures remain `ERROR` with diagnostic context. A potentially uncertain external publication or delivery must be reconciled before manual replay rather than being blindly resent.
+
+For a controlled investigation of stranded records, first verify their identifiers, logs, Kafka state, and Notification outcome. Then apply a narrowly scoped recovery update approved for the incident. Do not run a blanket reset of every `IN_PROCESS` record.
+
+## Technology
+
+- Node.js 24 and TypeScript
+- NestJS 11, `@nestjs/schedule`, and `cron`
+- PostgreSQL 17 with Prisma 7 and `@prisma/adapter-pg`
+- Apache Kafka with KafkaJS
+- Jest and Supertest
+
+## Project structure
+
+```text
 src/
-  api/
-    consumers/
-    scheduling/cron/
-  application/
-    messaging/
-    use-cases/
-  domain/
-    abstractions/
-    outbox/
-    users/
-  infrastructure/
-    messaging/kafka/
-    persistence/prisma/
-    producers/
-    repositories/
+  api/                 Kafka consumers and cron registration
+  application/         Use cases and messaging ports
+  domain/              Entities, state, errors, and repository ports
+  infrastructure/      Prisma repositories, Kafka client, and publishers
   app.module.ts
-  main.ts
 
-test/
-  api/
-  application/
-  domain/
-  infrastructure/
-  integration/
+test/                  Unit, contract, and integration tests
+config/                Environment examples
+docs/architecture/     Static PNG, interactive HTML, and editable diagram source
 ```
 
-### Domain
+## Prerequisites and configuration
 
-Contiene el modelo de dominio y los contratos principales del sistema.
+Use Node.js `24.16.0` and pnpm `11.25.0` (declared in `package.json`). PostgreSQL and Kafka must be reachable before starting the worker; the central Docker setup is maintained in [Vault.History.System](https://github.com/CarlosSV923/Vault.History.System).
 
-Incluye:
-
-- Entidades de usuarios y mensajes outbox.
-- Abstracciones compartidas `Result` y `Error`.
-- Estados y tipos de notificacion/outbox.
-- Interfaces/puertos de repositorios.
-
-Esta capa no depende de Prisma, Kafka ni otros detalles concretos de infraestructura.
-
-### Application
-
-Contiene los casos de uso y la logica de aplicacion.
-
-Incluye:
-
-- Publicacion de eventos mediante `EventPublisherPort`.
-- Actualizacion de usuarios recibida desde Kafka.
-- Actualizacion de mensajes outbox recibida desde Kafka.
-- Notificacion de inicios de sesión pendientes.
-- Notificacion de usuarios que cumplen anos.
-- Procesamiento de mensajes outbox pendientes.
-
-### Infrastructure
-
-Contiene las implementaciones concretas de persistencia y mensajeria.
-
-Incluye:
-
-- `PrismaService` y cliente Prisma para PostgreSQL.
-- Repositorios Prisma de usuarios y mensajes outbox.
-- Cliente consumidor y productor de Kafka.
-- Adaptador de publicacion de eventos.
-- Configuracion de topics, consumer group y reintentos de Kafka.
-
-### Api
-
-En este microservicio, la capa API coordina consumidores y tareas programadas; no expone endpoints HTTP de negocio.
-
-Incluye:
-
-- Consumidor de actualizaciones de usuarios.
-- Consumidor de actualizaciones de mensajes outbox.
-- Cron para notificar usuarios con mensajes outbox pendientes.
-- Cron para notificar usuarios que cumplen anos.
-- Cron para procesar mensajes outbox pendientes.
-
-## Flujo De Procesamiento
-
-El servicio se ejecuta como un worker y combina tareas programadas con mensajeria Kafka.
-
-### Tareas programadas
-
-Las tareas se registran durante el inicio de la aplicacion y utilizan las expresiones configuradas en el ambiente:
-
-```txt
-notify-outbox-cron  -> busca inicios de sesión y publica notificaciones.
-notify-user-cron    -> busca usuarios cuyo cumpleanos coincide y publica historias.
-process-outbox-cron -> marca como procesados cambios de usuario ya consumidos.
-```
-
-### Kafka
-
-Topics consumidos:
-
-```txt
-KAFKA_UPDATE_USERS_TOPIC  -> actualiza el estado de notificacion de usuarios.
-KAFKA_UPDATE_OUTBOX_TOPIC -> actualiza el estado de mensajes outbox.
-```
-
-Topics publicados:
-
-```txt
-KAFKA_NOTIFY_HISTORY_TOPIC -> solicita la generacion de una historia.
-KAFKA_NOTIFY_OUTBOX_TOPIC  -> notifica un inicio de sesión de usuario.
-```
-
-### Contratos Kafka
-
-Los mensajes se publican como JSON UTF-8 en `camelCase`. Las fechas se serializan en formato ISO 8601 UTC. Los fixtures de referencia se encuentran en `test/fixtures/kafka`.
-
-`notify-history-topic` solicita una historia para un usuario elegible:
-
-```json
-{
-  "userId": "user-id",
-  "email": "person@example.com",
-  "fullname": "Person Name",
-  "birthDate": "2000-01-01T00:00:00.000Z",
-  "theme": null,
-  "character": null
-}
-```
-
-`notify-outbox-topic` conserva la correlación con el registro outbox que debe actualizarse después del envío:
-
-```json
-{
-  "outboxId": "outbox-id",
-  "userId": "user-id",
-  "email": "person@example.com",
-  "fullname": "Person Name",
-  "birthDate": "2000-01-01T00:00:00.000Z",
-  "type": "UserSignedInEvent",
-  "occurredOn": "2026-09-05T12:30:00.000Z"
-}
-```
-
-`UserSignedInEvent` es el tipo de outbox que activa este flujo de notificación. `CreateUserEvent` se procesa por el flujo general de outbox y no se publica en `notify-outbox-topic`.
-
-Antes de publicar, Jobs valida que el evento tenga `userId` y consulta al usuario sin filtrar su estado. Un payload inválido, un usuario inexistente o un usuario inactivo deja el outbox en `ERROR` con `USER_ID_MISSING`, `USER_NOT_FOUND` o `USER_INACTIVE`, respectivamente. De este modo el cron no deja registros en `IN_PROCESS` sin una ruta explícita de recuperación.
-
-Los resultados consumidos por Jobs actualizan una sola entidad y usan `id` como identificador escalar:
-
-```json
-{ "id": "user-id", "data": { "notificationStatus": "NOTIFIED", "notificationDate": "2026-09-05T12:31:00.000Z" } }
-```
-
-```json
-{ "id": "outbox-id", "data": { "status": "PROCESSED", "error": null } }
-```
-
-Los consumers no aceptan el formato heredado `ids`. Antes de desplegar productores de Notification, se deben drenar o transformar los mensajes de resultado antiguos; un mensaje de outbox sin `outboxId` no puede actualizarse de forma segura.
-
-Internamente, los repositorios conservan operaciones por lote y reciben un arreglo de un elemento.
-
-El consumer group se configura mediante `KAFKA_GROUP_ID`. Kafka utiliza `KAFKA_BROKER` como broker principal y reintenta las operaciones de consumo y publicacion cuando ocurren errores transitorios.
-
-### Selección y recuperación
-
-Los cumpleaños se comparan por mes y día en UTC, sin considerar el año de nacimiento. El 29 de febrero se notifica solamente en años bisiestos. Un usuario con estado `ERROR` no se selecciona otra vez de forma automática durante el mismo flujo.
-
-Antes de publicar, Jobs reserva los registros con `IN_PROCESS`. Si la publicación falla de forma conocida, cambia el registro a `ERROR`: los usuarios reciben fecha nula y los outbox reciben `NOTIFICATION_PUBLISH_FAILED`. La recuperación automática no reenvía resultados cuya publicación pudo haber sido incierta.
-
-Para recuperar registros antiguos que permanezcan en `IN_PROCESS`, revisar primero la causa y los logs. Tras confirmar que no se enviaron o procesaron, marcarlos manualmente como `ERROR` para investigarlos o reprogramarlos mediante un procedimiento controlado:
-
-```sql
-UPDATE users
-SET "notificationStatus" = 'ERROR', "notificationDate" = NULL
-WHERE "notificationStatus" = 'IN_PROCESS';
-
-UPDATE outbox_messages
-SET status = 'ERROR', error = 'MANUAL_RECOVERY'
-WHERE status = 'IN_PROCESS';
-```
-
-No ejecutar estas sentencias de forma ciega: validar el rango de IDs y el estado de Kafka/Notification antes de aplicarlas.
-
-## Domain-Driven Design
-
-El proyecto aplica conceptos de Domain-Driven Design para mantener el dominio aislado y expresivo.
-
-Conceptos utilizados:
-
-- **Entities**: objetos con identidad propia, como `User` y `Outbox`.
-- **Ports**: contratos definidos desde el dominio para acceder a repositorios y servicios externos.
-- **Adapters**: implementaciones concretas de los puertos en infraestructura.
-- **Result Pattern**: respuesta explicita de exito o error para el flujo esperado.
-- **Error Entity**: representacion uniforme de errores de dominio, persistencia o mensajeria.
-
-## Configuracion Local
-
-La aplicacion carga configuracion desde la carpeta:
-
-```txt
-config/
-```
-
-El archivo cargado depende de `NODE_ENV`:
-
-```txt
-config/.env.local
-config/.env.test
-config/.env.production
-```
-
-Para ejecucion local se usa `NODE_ENV=local` y se recomienda partir de `config/.env.local.example`. El entorno Docker proporciona sus variables directamente desde el Compose de `Vault.History.System`.
-
-Ejemplo:
+Start from `config/.env.local.example`. The application loads `config/.env.<NODE_ENV>` and requires values such as:
 
 ```env
 DATABASE_URL="postgresql://vault_history:vault_history@localhost:5432/vault_history?schema=public"
-
-OUTBOX_QUERY_LIMIT=30
-USER_QUERY_LIMIT=30
-
-NOTIFY_OUTBOX_CRON_EXPRESSION="0 */3 * * * *"
-NOTIFY_USER_CRON_EXPRESSION="0 */3 * * * *"
-PROCESS_OUTBOX_CRON_EXPRESSION="0 */3 * * * *"
-
 KAFKA_BROKER="localhost:9094"
-KAFKA_NOTIFY_OUTBOX_TOPIC="notify-outbox-topic"
 KAFKA_NOTIFY_HISTORY_TOPIC="notify-history-topic"
+KAFKA_NOTIFY_OUTBOX_TOPIC="notify-outbox-topic"
 KAFKA_UPDATE_USERS_TOPIC="update-users-topic"
 KAFKA_UPDATE_OUTBOX_TOPIC="update-outbox-topic"
 KAFKA_CLIENT_ID="vault-history-microservice-jobs"
 KAFKA_GROUP_ID="vault-history-microservice-jobs-group"
 ```
 
-Cuando la aplicacion corre dentro de Docker, debe usar los nombres de servicio de Compose:
+Cron expressions use the six-field format supported by `cron`, including seconds. Query limits, retry settings, and cron expressions are configured through the same environment file. Do not commit provider credentials or production connection strings.
 
-```env
-DATABASE_URL="postgresql://vault_history:vault_history@postgres:5432/vault_history?schema=public"
-KAFKA_BROKER="kafka:9092"
-```
-
-La expresion de cron usa el formato de seis campos de la libreria `cron`, incluyendo segundos. Por ejemplo, `0 */3 * * * *` ejecuta una tarea cada tres minutos.
-
-## Instalar Dependencias
-
-Desde la raiz del repositorio:
+## Running locally
 
 ```bash
 pnpm install
 pnpm prisma:generate
+pnpm start
 ```
 
-## Ejecutar Con pnpm
-
-Antes de iniciar, asegure que PostgreSQL y Kafka esten disponibles y que exista el archivo de configuracion correspondiente.
-
-Para iniciar en modo local:
+Useful commands:
 
 ```bash
-pnpm run start
+pnpm start:dev
+pnpm build
+pnpm prisma:validate
+pnpm test
+pnpm test:e2e
+pnpm lint
 ```
 
-Para ejecutar en modo watch:
+For the full local environment, run Docker Compose from the central orchestration repository. Inside Compose, use service hostnames such as `postgres:5432` and `kafka:9092` rather than local host ports.
 
-```bash
-pnpm run start:dev
-```
+## Shared database ownership
 
-Para ejecutar en modo debug:
+Jobs uses Prisma against the shared `users` and `outbox_messages` tables. It generates and validates its client but does not create migrations. The [User microservice](https://github.com/CarlosSV923/VaultHistory.Microservice.User) owns schema evolution; update that service's migration first, then align this Prisma schema and regenerate the client.
 
-```bash
-pnpm run start:debug
-```
+## Testing
 
-Para compilar el proyecto:
+Unit tests cover domain rules, use cases, Kafka infrastructure, and Prisma repositories. Contract fixtures check the published and consumed Kafka payloads. Integration tests mock PostgreSQL and Kafka so they can verify Nest module startup, cron registration, use-case dispatch, and consumer resolution without external services or real notification delivery.
 
-```bash
-pnpm run build
-```
+## Related repositories
 
-Para ejecutar la version compilada en modo produccion:
-
-```bash
-pnpm run start:prod
-```
-
-El proceso Nest escucha por defecto en `http://localhost:3000`, pero este microservicio no expone endpoints HTTP de negocio. Su funcionamiento principal ocurre mediante los cron jobs y los mensajes Kafka.
-
-## Ejecutar Con Docker
-
-La construcción de Jobs, PostgreSQL y Kafka se administra desde [Vault.History.System](https://github.com/CarlosSV923/Vault.History.System). Ese repositorio contiene el Dockerfile y el Compose únicos del sistema:
-
-```bash
-docker compose up --build -d
-```
-
-Jobs se ejecuta como worker sin publicar un puerto HTTP. El esquema compartido sigue siendo propiedad de User; Jobs genera el cliente Prisma durante el build y no ejecuta migraciones.
-
-## PostgreSQL Y Prisma
-
-El proyecto usa PostgreSQL como base de datos y Prisma como ORM.
-
-El esquema se encuentra en:
-
-```txt
-src/infrastructure/persistence/prisma/schema.prisma
-```
-
-Modelos principales:
-
-```txt
-User   -> users
-Outbox -> outbox_messages
-```
-
-`User` almacena la informacion necesaria para notificaciones de cumpleanos y el estado de la notificacion. `Outbox` almacena eventos de dominio pendientes, procesados o en proceso.
-
-Comandos utiles:
-
-```bash
-pnpm run prisma:generate
-pnpm run prisma:validate
-pnpm run prisma:studio
-```
-
-Jobs valida y genera su cliente Prisma, pero no crea ni aplica migraciones. `VaultHistory.Microservice.User` es el único proyecto autorizado a evolucionar las tablas compartidas `users` y `outbox_messages` mediante EF Core.
-
-## Flujo Recomendado Para Cambios De Base De Datos
-
-Cada vez que se modifique el modelo persistente compartido:
-
-```txt
-1. Actualizar el modelo y la migración de `VaultHistory.Microservice.User`.
-2. Reflejar el contrato en `schema.prisma`.
-3. Ejecutar `pnpm prisma:generate` y `pnpm prisma:validate` en Jobs.
-4. Ajustar entidades, puertos, repositorios o mappers, si aplica.
-5. Actualizar o agregar pruebas unitarias.
-6. Actualizar pruebas de integración cuando cambie el comportamiento persistente.
-7. Probar ambos proyectos contra la misma base de datos.
-```
-
-Para probar Docker desde cero después de cambios de persistencia, desde `Vault.History.System`:
-
-```bash
-docker compose down --volumes
-docker compose up --build -d
-```
-
-## Tests
-
-Ejecutar todos los tests unitarios:
-
-```bash
-pnpm run test
-```
-
-Ejecutar tests en modo watch:
-
-```bash
-pnpm run test:watch
-```
-
-Ejecutar tests con cobertura:
-
-```bash
-pnpm run test:cov
-```
-
-Ejecutar la suite configurada para pruebas end-to-end:
-
-```bash
-pnpm run test:e2e
-```
-
-Las pruebas de integracion existentes verifican el arranque del modulo, el registro de los tres cron jobs, la ejecucion de tareas y la resolucion de consumidores. Las dependencias de PostgreSQL y Kafka se reemplazan por mocks en esa suite para evitar requerir servicios externos.
-
-## Calidad De Codigo
-
-Formatear codigo:
-
-```bash
-pnpm run format
-```
-
-Ejecutar ESLint con autofix:
-
-```bash
-pnpm run lint
-```
-
-## Herramientas Necesarias
-
-- Node.js 24
-- pnpm 11
-- Docker Desktop
-- PostgreSQL, opcional si se usa Docker
-- Apache Kafka, opcional si se usa Docker
-- Volta, opcional pero recomendado para fijar versiones
-
-Habilitar pnpm mediante Corepack:
-
-```bash
-corepack enable
-```
-
-## Manejo De Versiones Con Volta
-
-El proyecto declara las versiones recomendadas en `package.json` mediante Volta:
-
-```json
-{
-    "volta": {
-        "node": "24.16.0",
-        "pnpm": "11.25.0"
-    }
-}
-```
-
-Volta es opcional, pero ayuda a asegurar que los entornos de desarrollo utilicen las mismas versiones.
-
-Instalar Volta en Windows:
-
-```bash
-winget install Volta.Volta
-```
-
-Verificar la instalacion:
-
-```bash
-volta --version
-node --version
-pnpm --version
-```
+- [Vault.History.System](https://github.com/CarlosSV923/Vault.History.System) — Docker orchestration and system documentation
+- [VaultHistory.Microservice.User](https://github.com/CarlosSV923/VaultHistory.Microservice.User) — user API and shared database migrations
+- [VaultHistory.Microservice.History](https://github.com/CarlosSV923/VaultHistory.Microservice.History) — story generation and storage
+- [VaultHistory.Microservice.Notification](https://github.com/CarlosSV923/VaultHistory.Microservice.Notification) — story and email delivery
+- [Portfolio Vault History System project](https://github.com/users/CarlosSV923/projects/3)
