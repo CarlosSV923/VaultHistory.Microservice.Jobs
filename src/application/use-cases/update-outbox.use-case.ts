@@ -4,8 +4,14 @@ import { OutboxRepositoryPortToken } from '@domain/outbox/ports/outbox-repositor
 import type { OutboxRepositoryPort } from '@domain/outbox/ports/outbox-repository.port';
 
 export class UpdateOutboxUseCasePayload {
-    ids!: string[];
-    data!: { status: string; error: string | null };
+    id!: string;
+    data!: {
+        status: string;
+        error: string | null;
+        notificationNextRetryAt?: Date | null;
+        notificationFailureStage?: string | null;
+        notificationFailureReason?: string | null;
+    };
 }
 
 @Injectable()
@@ -16,6 +22,6 @@ export class UpdateOutboxUseCase {
     ) {}
 
     async execute(payload: UpdateOutboxUseCasePayload): Promise<ResultEntity<void>> {
-        return this.outboxRepository.updateStatusByIds(payload.ids, payload.data);
+        return this.outboxRepository.updateStatusByIds([payload.id], payload.data);
     }
 }

@@ -1,0 +1,7 @@
+{
+  "id": "outbox-1",
+  "data": {
+    "status": "PROCESSED",
+    "error": null
+  }
+}

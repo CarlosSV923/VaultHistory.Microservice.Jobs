@@ -1,0 +1,156 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Vault History Jobs Service Architecture",
+    "quality_profile": "showcase",
+    "output": "jobs-architecture.html",
+    "repository": {
+      "url": "https://github.com/CarlosSV923/VaultHistory.Microservice.Jobs",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "8687177c1c1328de07fdda8d4608605da99068a2"
+    },
+    "views": [
+      {
+        "id": "scheduled-publication",
+        "label": "Scheduled publication",
+        "focus": ["scheduler", "jobs-worker", "postgres", "kafka"],
+        "note": "Three cron jobs select and reserve eligible records before publishing notification work."
+      },
+      {
+        "id": "outcome-application",
+        "label": "Outcome application",
+        "focus": ["downstream-services", "kafka", "jobs-worker", "postgres"],
+        "note": "Kafka outcomes are correlated by scalar id and applied to users or outbox messages."
+      }
+    ]
+  },
+  "layout": {
+    "mode": "grid",
+    "origin": [56, 110],
+    "cols": 4,
+    "gapX": 150,
+    "gapY": 150,
+    "cellW": 174,
+    "cellH": 68
+  },
+  "components": [
+    {
+      "id": "scheduler",
+      "type": "backend",
+      "label": "NestJS scheduler",
+      "row": 0,
+      "col": 0,
+      "sources": [{ "path": "src/api/scheduling/cron/notify-user.cron.ts", "line": 8, "label": "birthday cron" }]
+    },
+    {
+      "id": "jobs-worker",
+      "type": "backend",
+      "label": "Jobs worker",
+      "row": 0,
+      "col": 1,
+      "sources": [{ "path": "src/application/use-cases/notify-users.use-case.ts", "line": 9, "label": "birthday workflow" }]
+    },
+    {
+      "id": "postgres",
+      "type": "database",
+      "label": "PostgreSQL",
+      "row": 0,
+      "col": 2,
+      "sources": [{ "path": "src/infrastructure/persistence/prisma/schema.prisma", "line": 14, "label": "users and outbox" }]
+    },
+    {
+      "id": "kafka",
+      "type": "messagebus",
+      "label": "Apache Kafka",
+      "row": 1,
+      "col": 1,
+      "sources": [{ "path": "src/infrastructure/infrastructure.module.ts", "line": 45, "label": "topic bindings" }]
+    },
+    {
+      "id": "downstream-services",
+      "type": "external",
+      "label": "Downstream services",
+      "row": 0,
+      "col": 3
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Vault History Jobs microservice",
+      "wraps": ["scheduler", "jobs-worker"],
+      "pad": 26
+    }
+  ],
+  "connections": [
+    {
+      "id": "schedule-work",
+      "from": "scheduler",
+      "to": "jobs-worker",
+      "label": "trigger scheduled use cases",
+      "variant": "emphasis"
+    },
+    {
+      "id": "query-and-reserve",
+      "from": "jobs-worker",
+      "to": "postgres",
+      "label": "read and update users / outbox",
+      "variant": "emphasis"
+    },
+    {
+      "id": "publish-work",
+      "from": "jobs-worker",
+      "to": "kafka",
+      "label": "publish notify-history / notify-outbox",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [540, 184]
+    },
+    {
+      "id": "deliver-work",
+      "from": "kafka",
+      "to": "downstream-services",
+      "label": "deliver notification work",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "publish-outcomes",
+      "from": "downstream-services",
+      "to": "kafka",
+      "label": "publish correlated outcomes",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "consume-outcomes",
+      "from": "kafka",
+      "to": "jobs-worker",
+      "label": "consume update-users / update-outbox",
+      "fromSide": "left",
+      "toSide": "left",
+      "labelDx": -100
+    }
+  ],
+  "cards": [
+    {
+      "dot": "amber",
+      "title": "Safe publication",
+      "items": [
+        "Eligible users and outbox messages are marked IN_PROCESS before publication.",
+        "Known publication failures are persisted as ERROR."
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Outcome contracts",
+      "items": [
+        "Consumers correlate a result with one scalar id.",
+        "A user result may schedule its next retry; an outbox result records status and failure context."
+      ]
+    }
+  ]
+}

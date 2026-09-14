@@ -50,6 +50,7 @@ describe('NotifyUserUseCase', () => {
                 email: 'one@test.com',
                 fullname: 'User One',
                 userId: 'user-1',
+                notificationId: 'user-1:2000',
                 birthDate: birthdate,
                 character: 'hero',
                 theme: 'dark',
@@ -67,5 +68,33 @@ describe('NotifyUserUseCase', () => {
         expect(result.isFailure).toBe(true);
         expect(result.error).toBe(error);
         expect(userRepository.updateNotificationStatusByIds).not.toHaveBeenCalled();
+    });
+
+    it('should mark reserved users as error when publishing the history notification fails', async () => {
+        const user = {
+            id: 'user-1',
+            email: 'one@test.com',
+            fullname: 'User One',
+            birthDate: new Date('2000-01-01'),
+            character: null,
+            theme: null,
+        };
+        const publishError = ErrorEntity.MessageError('Kafka unavailable');
+        userRepository.getToNotifyByBirthday.mockResolvedValue(ResultEntity.success([user]));
+        userRepository.updateNotificationStatusByIds.mockResolvedValue(ResultEntity.success());
+        eventPublisher.notifyHistoryToUser.mockResolvedValue(ResultEntity.failure(publishError));
+
+        const result = await useCase.execute(new Date('2026-01-01'));
+
+        expect(userRepository.updateNotificationStatusByIds).toHaveBeenNthCalledWith(1, ['user-1'], {
+            notificationStatus: NotificationStatus.IN_PROCESS,
+            notificationDate: null,
+        });
+        expect(userRepository.updateNotificationStatusByIds).toHaveBeenNthCalledWith(2, ['user-1'], {
+            notificationStatus: NotificationStatus.ERROR,
+            notificationDate: null,
+        });
+        expect(result.isFailure).toBe(true);
+        expect(result.error).toBe(publishError);
     });
 });

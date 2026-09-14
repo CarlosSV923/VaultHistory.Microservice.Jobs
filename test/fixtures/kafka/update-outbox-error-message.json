@@ -1,0 +1,7 @@
+{
+  "id": "outbox-1",
+  "data": {
+    "status": "ERROR",
+    "error": "GMAIL_SEND_FAILED: delivery rejected"
+  }
+}

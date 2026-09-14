@@ -8,12 +8,15 @@ export class NotifyMessage {
 }
 
 export class NotifyHistoryMessage extends NotifyMessage {
+    notificationId!: string;
     theme?: string | null;
     character?: string | null;
 }
 
 export class NotifyOutboxMessage extends NotifyMessage {
+    outboxId!: string;
     type!: string;
+    occurredOn!: Date;
 }
 
 export interface EventPublisherPort {

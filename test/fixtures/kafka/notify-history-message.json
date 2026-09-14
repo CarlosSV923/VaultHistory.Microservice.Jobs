@@ -1,0 +1,8 @@
+{
+  "userId": "user-1",
+  "email": "one@example.com",
+  "fullname": "User One",
+  "birthDate": "2000-01-01T00:00:00.000Z",
+  "theme": null,
+  "character": null
+}

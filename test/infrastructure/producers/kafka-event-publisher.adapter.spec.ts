@@ -55,7 +55,17 @@ describe('KafkaEventPublisherAdapter', () => {
 
     describe('notifyOutboxToUser', () => {
         it('should successfully publish events and return success result', async () => {
-            const messages = [{ userId: 'user-3', text: 'outbox' }] as any[];
+            const messages = [
+                {
+                    outboxId: 'outbox-3',
+                    userId: 'user-3',
+                    email: 'three@test.com',
+                    fullname: 'User Three',
+                    birthDate: new Date('2000-01-01'),
+                    type: 'UserSignedInEvent',
+                    occurredOn: new Date('2026-09-05T12:30:00.000Z'),
+                },
+            ];
 
             producerService.publishEvents.mockResolvedValue(ResultEntity.success());
 

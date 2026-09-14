@@ -6,7 +6,13 @@ export interface UserRepositoryPort {
     getByIds(ids: string[]): Promise<ResultEntity<UserEntity[]>>;
     updateNotificationStatusByIds(
         ids: string[],
-        data: { notificationStatus: string; notificationDate: Date | null },
+        data: {
+            notificationStatus: string;
+            notificationDate: Date | null;
+            notificationNextRetryAt?: Date | null;
+            notificationFailureStage?: string | null;
+            notificationFailureReason?: string | null;
+        },
     ): Promise<ResultEntity<void>>;
 }
 

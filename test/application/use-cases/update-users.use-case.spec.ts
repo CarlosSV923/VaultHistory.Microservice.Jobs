@@ -20,7 +20,7 @@ describe('UpdateUsersUseCase', () => {
 
     it('should delegate the notification update to the user repository', async () => {
         const payload: UpdateUsersUseCasePayload = {
-            ids: ['user-1'],
+            id: 'user-1',
             data: { notificationStatus: 'IN_PROCESS', notificationDate: null },
         };
         userRepository.updateNotificationStatusByIds.mockResolvedValue(ResultEntity.success());
@@ -28,7 +28,7 @@ describe('UpdateUsersUseCase', () => {
         const result = await useCase.execute(payload);
 
         expect(userRepository.updateNotificationStatusByIds).toHaveBeenCalledWith(
-            payload.ids,
+            [payload.id],
             payload.data,
         );
         expect(result.isSuccess).toBe(true);

@@ -48,7 +48,6 @@ describe('PrismaUserRepository', () => {
 
             expect(prismaService.user.findMany).toHaveBeenCalledWith({
                 where: {
-                    isActive: true,
                     id: { in: ['user-1'] },
                 },
             });
@@ -134,7 +133,7 @@ describe('PrismaUserRepository', () => {
                     id: 'user-2',
                     fullname: 'Jane Doe',
                     email: 'jane@example.com',
-                    birthDate: birthdate,
+                    birthDate: new Date('1990-07-06T00:00:00Z'),
                     notification: true,
                     notificationStatus: 'NONE',
                     notificationDate: null,
@@ -150,27 +149,98 @@ describe('PrismaUserRepository', () => {
             const result = await repository.getToNotifyByBirthday(birthdate);
 
             expect(configService.get).toHaveBeenCalledWith('USER_QUERY_LIMIT');
-            expect(prismaService.user.findMany).toHaveBeenCalledWith({
-                where: {
+            expect(prismaService.user.findMany).toHaveBeenCalledWith(expect.objectContaining({
+                where: expect.objectContaining({
                     isActive: true,
                     notification: true,
-                    birthDate: {
-                        gte: expect.any(Date),
-                        lt: expect.any(Date),
-                    },
-                    notificationStatus: {
-                        not: NotificationStatus.IN_PROCESS,
-                    },
-                    OR: [
-                        { notificationDate: null },
-                        { notificationDate: { lt: expect.any(Date) } },
-                    ],
-                },
-                take: 50,
-            });
+                    AND: expect.arrayContaining([
+                        expect.objectContaining({
+                            OR: expect.arrayContaining([
+                                expect.objectContaining({ notificationStatus: NotificationStatus.PENDING }),
+                            ]),
+                        }),
+                    ]),
+                }),
+            }));
             expect(result.isSuccess).toBe(true);
             expect(result.Value.length).toBe(1);
             expect(result.Value[0].id).toBe('user-2');
+        });
+
+        it('should use UTC month and day, including February 29 on leap years and February 28 otherwise', async () => {
+            configService.get.mockReturnValue(50);
+            prismaService.user.findMany.mockResolvedValue([
+                {
+                    id: 'birthday-user',
+                    fullname: 'Birthday User',
+                    email: 'birthday@example.com',
+                    birthDate: new Date('1996-02-29T00:00:00Z'),
+                    notification: true,
+                    notificationStatus: null,
+                    notificationDate: null,
+                    createdAt: new Date(),
+                    updatedAt: null,
+                    isActive: true,
+                    theme: null,
+                    character: null,
+                },
+                {
+                    id: 'other-day-user',
+                    fullname: 'Other Day User',
+                    email: 'other-day@example.com',
+                    birthDate: new Date('1990-02-27T00:00:00Z'),
+                    notification: true,
+                    notificationStatus: null,
+                    notificationDate: null,
+                    createdAt: new Date(),
+                    updatedAt: null,
+                    isActive: true,
+                    theme: null,
+                    character: null,
+                },
+            ]);
+
+            const leapYearResult = await repository.getToNotifyByBirthday(
+                new Date('2028-02-29T12:00:00Z'),
+            );
+
+            expect(leapYearResult.isSuccess).toBe(true);
+            expect(leapYearResult.Value.map((user) => user.id)).toEqual(['birthday-user']);
+
+            const nonLeapYearResult = await repository.getToNotifyByBirthday(
+                new Date('2027-02-28T12:00:00Z'),
+            );
+
+            expect(nonLeapYearResult.isSuccess).toBe(true);
+            expect(nonLeapYearResult.Value.map((user) => user.id)).toEqual(['birthday-user']);
+        });
+
+        it('should allow prior-year errors while excluding errors from the current year', async () => {
+            configService.get.mockReturnValue(50);
+            prismaService.user.findMany.mockResolvedValue([]);
+
+            await repository.getToNotifyByBirthday(new Date('2027-07-06T12:00:00Z'));
+
+            expect(prismaService.user.findMany).toHaveBeenCalledWith({
+                where: expect.objectContaining({
+                    isActive: true,
+                    notification: true,
+                    AND: expect.arrayContaining([
+                        expect.objectContaining({
+                            OR: expect.arrayContaining([
+                                expect.objectContaining({
+                                    notificationStatus: {
+                                        in: [NotificationStatus.IN_PROCESS, NotificationStatus.ERROR],
+                                    },
+                                    OR: expect.arrayContaining([
+                                        { notificationProcessingStartedAt: { lt: new Date('2027-01-01T00:00:00Z') } },
+                                    ]),
+                                }),
+                            ]),
+                        }),
+                    ]),
+                }),
+            });
         });
 
         it('should return NotFound when no birthday users found', async () => {

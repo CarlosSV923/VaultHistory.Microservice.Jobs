@@ -78,7 +78,7 @@ describe('App Integration', () => {
         prismaServiceMock.outbox.findMany.mockResolvedValueOnce([
             {
                 id: 'outbox-e2e-1',
-                type: 'CREATE_USER',
+                type: 'UserSignedInEvent',
                 payload: '{"userId":"user-e2e-1"}',
                 occurredOn: new Date(),
                 status: 'PENDING',
@@ -128,7 +128,7 @@ describe('App Integration', () => {
 
         // Simulate update outbox consumption
         const outboxResult = await outboxConsumer.handle(
-            { ids: ['outbox-1'], data: { status: 'PROCESSED', error: null } },
+            { id: 'outbox-1', data: { status: 'PROCESSED', error: null } },
             { topic: 'outbox-topic', partition: 0, offset: '0', timestamp: '0', headers: {} },
         );
         expect(outboxResult.isSuccess).toBe(true);
@@ -136,8 +136,8 @@ describe('App Integration', () => {
         // Simulate update user consumption
         const userResult = await usersConsumer.handle(
             {
-                ids: ['user-1'],
-                data: { notificationStatus: 'SUCCESS', notificationDate: new Date() },
+                id: 'user-1',
+                data: { notificationStatus: 'NOTIFIED', notificationDate: new Date() },
             },
             { topic: 'users-topic', partition: 0, offset: '0', timestamp: '0', headers: {} },
         );

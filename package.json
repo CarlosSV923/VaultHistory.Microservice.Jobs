@@ -19,8 +19,7 @@
         "test:debug": "cross-env NODE_ENV=test node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
         "test:e2e": "cross-env NODE_ENV=test jest --config ./test/jest-e2e.json",
         "prisma:generate": "prisma generate --config ./src/infrastructure/persistence/prisma/prisma.config.ts",
-        "prisma:migrate-dev": "prisma migrate dev --config ./src/infrastructure/persistence/prisma/prisma.config.ts",
-        "prisma:migrate-deploy": "prisma migrate deploy --config ./src/infrastructure/persistence/prisma/prisma.config.ts",
+        "prisma:validate": "prisma validate --config ./src/infrastructure/persistence/prisma/prisma.config.ts",
         "prisma:studio": "prisma studio --config ./src/infrastructure/persistence/prisma/prisma.config.ts"
     },
     "dependencies": {

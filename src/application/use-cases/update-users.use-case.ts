@@ -4,8 +4,14 @@ import { UserRepositoryPortToken } from '@domain/users/ports/user-repository.por
 import type { UserRepositoryPort } from '@domain/users/ports/user-repository.port';
 
 export class UpdateUsersUseCasePayload {
-    ids!: string[];
-    data!: { notificationStatus: string; notificationDate: Date | null };
+    id!: string;
+    data!: {
+        notificationStatus: string;
+        notificationDate: Date | null;
+        notificationNextRetryAt?: Date | null;
+        notificationFailureStage?: string | null;
+        notificationFailureReason?: string | null;
+    };
 }
 
 @Injectable()
@@ -16,6 +22,6 @@ export class UpdateUsersUseCase {
     ) {}
 
     async execute(payload: UpdateUsersUseCasePayload): Promise<ResultEntity<void>> {
-        return this.userRepository.updateNotificationStatusByIds(payload.ids, payload.data);
+        return this.userRepository.updateNotificationStatusByIds([payload.id], payload.data);
     }
 }
